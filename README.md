@@ -4,7 +4,7 @@
 
 # astralix Userbot
 
-Telegram userbot with **astralix-tl**, installed from [astralix Git](https://git.astralix.cc/lowsense-dev/astralix-tl).
+Telegram userbot with **astralix-tl**, installed from [PyPI](https://pypi.org/project/astralix-tl/).
 [Project repository](https://git.astralix.cc/lowsense-dev/astralix). Both repositories are public. There are no project Telegram channels or support chats.
 
 ## Install from the source directory
