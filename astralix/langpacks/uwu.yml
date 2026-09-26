@@ -203,7 +203,6 @@ terminal:
 
   exec_error: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Execution ewwow:</b>\n<code>{}</code>"
 astralix_web:
-  host_denied: "<tg-emoji emoji-id=6037254263187443802>💬</tg-emoji> Session addition commands awe nyot avaiwabwe on youw hosting, pwease contact youw hosting administwation."
   btn_yes: "🚸 Confiwm anyway"
   btn_no: "🔻 Cwose"
   invalid_target: "Wepwy to da message of da pewson you want to add, ow specify deiw cowwect @username/id."
@@ -312,14 +311,9 @@ presets:
 
 settings:
   name: "Settings"
-  vds: "💎 VDS"
-  wsl: "💻 WSW"
-  userland: "🐧 UsewWAnd"
-  jamhost: "🧃 JamHost"
+  linux: "💎 Linux Device"
   choose_installation: "<tg-emoji emoji-id=5363805650327450240>🪐</tg-emoji> <b>Choose youw astralix instawwation option:</b>"
-  vds_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> Da instawwation pwocess on a VDS is donye with a singwe command:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>Nyote: If you do nyot have sudo pwiviweges, omit da cowwesponding pawt of da command.</i>"
-  wsl_install: "<b>Downwoad WSW.</b> To do dis, open PowewSheww as administwatow and type <code>wsl --install -d Ubuntu-22.04</code> \n⚠️ <i>To instaww WSW, you nyeed Windows 10 buiwd 2004 ow Windows 11 of any vewsion and a PC with viwtuawization suppowt. Fow instawwation on eawwiew vewsions of da OS, wefew to</i> <a href=\"https://learn.microsoft.com/ru-ru/windows/wsl/install-manual\">dis page</a>\n\n⬜️ <b>Westawt youw PC and waunch da Ubuntu 22.04.x appwication</b> \n\n⬜️ <b>Paste da command into it (WMB):</b> <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code> \n⚠️ <i>If yewwow wawnings appeaw, type</i> <code>export PATH=\"/home/username/.local/bin:$PATH\"</code> <i>wepwacing /home/username/.local/bin with da pad mentioned in da message</i>\n\n⬜️ <b>Paste da command (WMB):</b> \n<pre><code class=\"language-bash\">clear &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n🔗 <b>Whewe to get API_ID and API_HASH?</b>: <a href=\"https://youtu.be/DcqDA249Lhg?t=24\">Video</a>"
-  userland_install: "<b>Instaww UsewWAnd fwom dis</b> <a href=\"https://play.google.com/store/apps/details?id=tech.ula\">wink</a>\n\n<b>Open it, sewect Ubuntu —&gt; Minimaw —&gt; Tewminyaw</b>\n\n<b>Wait fow da distwibution to instaww, you can pouw some tea 🍵</b>\n\n<b>Aftew successfuw instawwation, a tewminyaw wiww open in fwont of you, type dewe:</b>\n<pre><code class=\"language-bash\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install python3 git curl -y &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n\n<b>At da end of da instawwation, a wink wiww appeaw, fowwow it and entew youw account detaiws to wogin.\n\nVoiwà! You have instawwed astralix on UsewWAnd.</b>"
+  linux_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> Da instawwation pwocess on a Linux Device is donye with a singwe command:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>Nyote: If you do nyot have sudo pwiviweges, omit da cowwesponding pawt of da command.</i>"
   too_many_args: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Too many awgs >w<</b>"
   blacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Chat {} bwackwisted fwom usewbot</b>"
   unblacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Chat {} unbwackwisted fwom usewbot</b>"

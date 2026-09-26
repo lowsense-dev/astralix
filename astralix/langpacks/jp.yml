@@ -203,7 +203,6 @@ terminal:
 
   exec_error: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>実行エラー:</b>\n<code>{}</code>"
 astralix_web:
-  host_denied: "<tg-emoji emoji-id=6037254263187443802>💬</tg-emoji> セッション追加コマンドはご利用のホスティングでは利用できません。ホスティング管理者にお問い合わせください。"
   btn_yes: "🚸 とにかく確認"
   btn_no: "🔻 閉じる"
   invalid_target: "追加したい人のメッセージに返信するか、正しい @username/id を指定してください。"
@@ -312,14 +311,9 @@ presets:
 
 settings:
   name: "Settings"
-  vds: "💎 VDS"
-  wsl: "💻 WSL"
-  userland: "🐧 UserLand"
-  jamhost: "🧃 JamHost"
+  linux: "💎 Linux Device"
   choose_installation: "<tg-emoji emoji-id=5363805650327450240>🪐</tg-emoji> <b>astralix インストールオプションを選択してください:</b>"
-  vds_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> VDS でのインストールプロセスは単一のコマンドで完了します:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>注: sudo 権限がない場合は、コマンドの該当部分を省略してください。</i>"
-  wsl_install: "<b>WSL をダウンロードします。</b> これを行うには、PowerShell を管理者として開き、<code>wsl --install -d Ubuntu-22.04</code> と入力します \n⚠️ <i>WSL をインストールするには、Windows 10 ビルド 2004 または Windows 11 の任意のバージョンと、仮想化サポートを備えた PC が必要です。以前のバージョンの OS へのインストールについては、</i> <a href=\"https://learn.microsoft.com/ru-ru/windows/wsl/install-manual\">このページ</a><i>を参照してください</i>\n\n⬜️ <b>PC を再起動し、Ubuntu 22.04.x アプリケーションを起動します</b> \n\n⬜️ <b>その中にコマンドを貼り付けます (右クリック):</b> <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code> \n⚠️ <i>黄色い警告が表示された場合は、</i> <code>export PATH=\"/home/username/.local/bin:$PATH\"</code> <i>と入力し、/home/username/.local/bin をメッセージに記載されているパスに置き換えてください</i>\n\n⬜️ <b>コマンドを貼り付けます (右クリック):</b> \n<pre><code class=\"language-bash\">clear &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n🔗 <b>API_ID と API_HASH はどこで入手できますか？</b>: <a href=\"https://youtu.be/DcqDA249Lhg?t=24\">ビデオ</a>"
-  userland_install: "<b>UserLAnd をこの</b> <a href=\"https://play.google.com/store/apps/details?id=tech.ula\">リンク</a><b>からインストールします</b>\n\n<b>開き、Ubuntu —&gt; Minimal —&gt; Terminal を選択します</b>\n\n<b>ディストリビューションのインストールを待ちます（お茶でも飲んで待っていてください）</b>\n\n<b>インストールが成功するとターミナルが開くので、そこに入力します:</b>\n<pre><code class=\"language-bash\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install python3 git curl -y &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n\n<b>インストールの最後にリンクが表示されるので、それに従ってアカウント情報を入力し、ログインします。\n\nこれで UserLAnd に astralix がインストールされました。</b>"
+  linux_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> Linux Device でのインストールプロセスは単一のコマンドで完了します:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>注: sudo 権限がない場合は、コマンドの該当部分を省略してください。</i>"
   too_many_args: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>引数が多すぎます</b>"
   blacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>チャット {} をユーザーボットのブラックリストに追加しました</b>"
   unblacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>チャット {} をユーザーボットのブラックリストから削除しました</b>"

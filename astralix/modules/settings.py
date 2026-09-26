@@ -17,7 +17,6 @@
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
 from .._branding import LOGO_PATH
-import contextlib
 import getpass
 import astralixtl
 from astralixtl.tl.types import Message, User
@@ -53,22 +52,6 @@ class CoreMod(loader.Module):
             ),
         )
 
-    async def client_ready(self):
-        self._markup = lambda: utils.chunks(
-            [
-                {
-                    "text": self.strings[platform],
-                    "callback": self._inline__choose__installation,
-                    "args": (platform,),
-                }
-                for platform in [
-                    "vds",
-                    "wsl",
-                    "userland",
-                ]
-            ],
-            2,
-        )
 
     async def blacklistcommon(self, message: Message):
         args = utils.get_args(message)
@@ -694,39 +677,5 @@ class CoreMod(loader.Module):
         await utils.answer(message, self.strings["cmc_done"].format(mod_arg))
 
     async def installationcmd(self, message: Message):
-        """| Guide of installation"""
-
-        args = utils.get_args_raw(message)
-
-        if (
-            not args or args not in {"-vds", "-wsl", "-ul"}
-        ) and not (
-            await self.inline.form(
-                self.strings["choose_installation"],
-                message,
-                reply_markup=self._markup(),
-                photo=None,
-            )
-        ):
-
-            await self.client.send_file(
-                message.peer_id,
-                str(LOGO_PATH),
-                caption=self.strings["vds_install"],
-                reply_to=getattr(message, "reply_to_msg_id", None),
-            )
-        match True:
-            case _ if "-vds" in args:
-                await utils.answer(message, self.strings["vds_install"])
-            case _ if "-wsl" in args:
-                await utils.answer(message, self.strings["wsl_install"])
-            case _ if "-ul" in args:
-                await utils.answer(message, self.strings["userland_install"])
-
-    async def _inline__choose__installation(self, call: InlineCall, platform: str):
-        with contextlib.suppress(Exception):
-            await utils.answer(
-                call,
-                self.strings[f"{platform}_install"],
-                reply_markup=self._markup(),
-            )
+        """| Installation guide for Linux Device"""
+        await utils.answer(message, self.strings["linux_install"])

@@ -56,10 +56,6 @@ class AstralixWebMod(LoginSessions, loader.Module):
 
     @loader.command()
     async def addacc(self, message: Message):
-        if "JAMHOST" in os.environ:
-            await utils.answer(message, self.strings["host_denied"])
-            return
-
         user_id = utils.get_args(message)
         if not user_id:
             reply: Message = await message.get_reply_message()
@@ -499,10 +495,6 @@ class AstralixWebMod(LoginSessions, loader.Module):
 
     @loader.command()
     async def switchacc(self, message: Message):
-        if "JAMHOST" in os.environ:
-            await utils.answer(message, self.strings["host_denied"])
-            return
-
         user = await self._client.get_entity(self.tg_id)
 
         if "force_insecure" in message.raw_text.lower():

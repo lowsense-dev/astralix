@@ -22,17 +22,12 @@ parser = astralixtl.utils.sanitize_parse_mode("html")
 logger = logging.getLogger(__name__)
 
 IS_DOCKER = "DOCKER" in os.environ
-IS_HIKKAHOST = "HIKKAHOST" in os.environ
 IS_MACOS = "com.apple" in os.environ.get("PATH", "")
-IS_USERLAND = "userland" in os.environ.get("USER", "")
-IS_WSL = False
 IS_WINDOWS = False
 with contextlib.suppress(Exception):
     from platform import uname
 
-    if "microsoft-standard" in uname().release:
-        IS_WSL = True
-    elif uname().system == "Windows":
+    if uname().system == "Windows":
         IS_WINDOWS = True
 
 
@@ -51,26 +46,17 @@ def get_named_platform() -> str:
 
     match True:
 
-        case _ if IS_WSL:
-            return "WSL"
-
         case _ if IS_WINDOWS:
             return "Windows"
 
         case _ if IS_MACOS:
             return "MacOS"
 
-        case _ if IS_USERLAND:
-            return "UserLand"
-
-        case _ if IS_HIKKAHOST:
-            return "HikkaHost"
-
         case _ if IS_DOCKER:
             return "Docker"
 
         case _:
-            return "VDS"
+            return "Linux Device"
 
 
 def get_named_platform_emoji() -> str:
@@ -92,26 +78,17 @@ def get_named_platform_emoji() -> str:
 
     match True:
 
-        case _ if IS_WSL:
-            return "🍀 "
-
         case _ if IS_WINDOWS:
             return "💻 "
 
         case _ if IS_MACOS:
             return "🍏 "
 
-        case _ if IS_USERLAND:
-            return "🐧 "
-
-        case _ if IS_HIKKAHOST:
-            return "🌼 "
-
         case _ if IS_DOCKER:
             return "🐳 "
 
         case _:
-            return "💎 "
+            return "🐧 "
 
 
 def get_platform_emoji() -> str:
@@ -130,12 +107,6 @@ def get_platform_emoji() -> str:
     )
 
     match True:
-
-        case _ if IS_HIKKAHOST:
-            return BASE.format(5395745114494624362)
-
-        case _ if IS_USERLAND:
-            return BASE.format(5458877818031077824)
 
         case _ if IS_DOCKER:
             return BASE.format(5352678227582152630)
