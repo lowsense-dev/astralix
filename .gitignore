@@ -121,7 +121,6 @@ venv.bak/
 .ropeproject
 
 # mkdocs documentation
-/site
 
 # mypy
 .mypy_cache/
@@ -160,6 +159,7 @@ config.json
 !assets/astralix-bot.png
 !assets/astralix-chat.png
 !assets/*-banner.png
+!site/favicon.png
 *.webp
 *.webm
 *.tgs
