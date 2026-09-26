@@ -151,21 +151,12 @@ def get_swap_usage() -> dict:
 
 
 def get_cpu_usage():
-    """
-    Get CPU usage percentage using system-wide metrics
-    Falls back to psutil.cpu_percent() to avoid /proc/stat permission issues
-    """
+    """Get CPU usage percentage using system-wide metrics."""
     import psutil
 
     try:
         cpu_percent = psutil.cpu_percent(interval=0.1)
         return f"{cpu_percent:.2f}"
-    except PermissionError:
-        try:
-            cpu_percent = psutil.cpu_percent(interval=0)
-            return f"{cpu_percent:.2f}" if cpu_percent != 0 else "0.00"
-        except Exception:
-            return "0.00"
     except Exception:
         return "0.00"
 

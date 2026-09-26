@@ -60,22 +60,7 @@ python_cmd() {
 install_system_packages() {
 	info "Installing system packages..."
 
-	if echo "${OSTYPE:-}" | grep -qE "^linux-android"; then
-		run pkg update -y
-		run pkg install -y \
-			build-essential \
-			curl \
-			ffmpeg \
-			git \
-			libcairo \
-			libffi \
-			libjpeg-turbo \
-			libwebp \
-			ncurses-utils \
-			openssl \
-			python \
-			uv
-	elif command -v apt-get >/dev/null 2>&1; then
+	if command -v apt-get >/dev/null 2>&1; then
 		sudo_run apt-get update
 		sudo_run apt-get install -y \
 			build-essential \
