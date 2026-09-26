@@ -1,4 +1,4 @@
-./vendor/astralixtl-sources
+git+https://github.com/radiocycle/astralix-tl.git
 pyaes
 gitpython==3.1.60
 deep-translator==1.11.4

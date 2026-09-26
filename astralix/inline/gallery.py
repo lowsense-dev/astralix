@@ -267,7 +267,7 @@ class Gallery(InlineUnit):
                     (
                         utils.get_platform_emoji()
                         if self._client.astralix_me.premium
-                        else "🪐"
+                        else "✨"
                     )
                     + self.translator.getkey("inline.opening_gallery"),
                     **({"reply_to": utils.get_topic(message)} if message.out else {}),

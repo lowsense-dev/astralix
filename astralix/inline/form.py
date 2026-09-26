@@ -53,7 +53,7 @@ VERIFICATION_EMOJIES = list(
         "🦀🐡🐠🐟🐅🐊🦭🦈🐋🐳🐬🐆🦓🦍🦧🦣🐘🦛🐃🦬🦘🦒🐫🐪🦏"
         "🐂🐄🐎🐖🐏🐑🦙🐈🐕‍🦺🦮🐩🐕🦌🐐🐈‍⬛🪶🐓🦃🦤🦚🦜🦡🦨🦝🐇"
         "🕊🦩🦢🦫🦦🦥🐁🐀🐿🦔🌳🌲🌵🐲🐉🐾🎋🍂🍁🍄🐚🌾🪨💐🌷"
-        "🥀🌺🌸🌻🌞🌜🌘🌗🌎🪐💫⭐️✨⚡️☄️💥☀️🌪🔥🌈🌤⛅️❄️⛄️🌊"
+        "🥀🌺🌸🌻🌞🌜🌘🌗🌎✨💫⭐️✨⚡️☄️💥☀️🌪🔥🌈🌤⛅️❄️⛄️🌊"
         "☂️🍏🍎🍐🍊🍋🍌🍉🥭🍑🍒🍈🫐🍓🍇🍍🥥🥝🍅🥑🥦🧔‍♂️"
     )
 )
@@ -289,7 +289,7 @@ class Form(InlineUnit):
                     (
                         utils.get_platform_emoji()
                         if self._client.astralix_me.premium
-                        else "🪐"
+                        else "✨"
                     )
                     + self.translator.getkey("inline.opening_form"),
                     **({"reply_to": utils.get_topic(message)} if message.out else {}),
@@ -481,7 +481,7 @@ class Form(InlineUnit):
             return
 
         form = self._units[inline_query.query]
-        form_text = "🪐" if form.get("premium_emoji_pre_edit") else form.get("text")
+        form_text = "✨" if form.get("premium_emoji_pre_edit") else form.get("text")
         try:
             match True:
                 case _ if "rich_message" in form:

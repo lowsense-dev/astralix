@@ -128,8 +128,8 @@ else:
             int(match.group()) if (match := re.match(r"\d+", part)) else 0
             for part in astralixtl.__version__.split(".")
         )
-        if ver_ < (1, 7, 2):
-            raise ImportError("astralix-tl 1.7.2 or newer is required")
+        if ver_ < (1, 0, 0):
+            raise ImportError("astralix-tl 1.0.0 or newer is required")
         from . import log
         log.init()
         from . import main

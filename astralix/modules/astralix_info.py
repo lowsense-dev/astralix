@@ -64,7 +64,7 @@ class AstralixInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "ping_emoji",
-                "🪐",
+                "✨",
                 lambda: self.strings["ping_emoji"],
                 validator=loader.validators.String(),
             ),

@@ -20,7 +20,7 @@
 
 
 
-__version__ = (2, 2, 2)
+__version__ = (1, 0, 0)
 
 import os
 
@@ -29,13 +29,6 @@ if not NO_GIT:
     import git
 else:
     git = None
-from ._internal import (
-    check_commit_ancestor,
-    get_branch_name,
-    reset_to_master,
-    restart,
-    restore_worktree,
-)
 
 if NO_GIT:
     branch = "master"
@@ -48,8 +41,3 @@ else:
             branch = repo.active_branch.name
     except Exception:
         branch = "master"
-
-
-async def check_branch(me_id: int, allowed_ids: list, self):
-    """Private forks do not require an upstream beta allowlist."""
-    return

@@ -79,7 +79,6 @@ from .dispatcher import CommandDispatcher
 from .qr import QRCode
 from .secure import patcher
 from .tl_cache import CustomTelegramClient
-from .utils.other import allowed_ids as get_allowed_ids
 from .translations import Translator
 from .version import __version__
 
@@ -1039,7 +1038,7 @@ class Astralix:
 
         return bool(self.sessions)
 
-    async def amain_wrapper(self, client: CustomTelegramClient, a_i: list):
+    async def amain_wrapper(self, client: CustomTelegramClient):
         """Wrapper around amain"""
         async with client:
             first = True
@@ -1051,8 +1050,6 @@ class Astralix:
             set_client_id(me.id)
             register_secret(StringSession.save(client.session))
             register_secret(getattr(me, "phone", None))
-
-            await version.check_branch(me.id, a_i, self)
 
             while await self.amain(first, client):
                 first = False
@@ -1248,9 +1245,8 @@ class Astralix:
             return
 
         self.loop.set_exception_handler(self._loop_exception_handler)
-        allowed_ids = await get_allowed_ids()
         await asyncio.gather(
-            *[self.amain_wrapper(client, allowed_ids) for client in self.clients]
+            *[self.amain_wrapper(client) for client in self.clients]
         )
 
     async def _shutdown_handler(self):

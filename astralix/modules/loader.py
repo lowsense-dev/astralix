@@ -458,7 +458,7 @@ class LoaderMod(loader.Module):
     ) -> str:
         """Render batch results or a single module with description and commands."""
         header = (
-            '<tg-emoji emoji-id="5134452506935427991">🪐</tg-emoji> '
+            '✨ '
             f"<b>{len(modules)} Modules loaded</b>"
         )
         parts = [] if single else [f"<p>{header}</p>" if rich else header]
@@ -533,7 +533,7 @@ class LoaderMod(loader.Module):
             lines = lines if command_lines is None else command_lines
             if single:
                 title = (
-                    '<tg-emoji emoji-id="5134452506935427991">🪐</tg-emoji> '
+                    '✨ '
                     f"<b>{utils.escape_html(str(name))}</b>{version_suffix}"
                 )
                 parts.append(f"<p>{title}</p>" if rich else title)

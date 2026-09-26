@@ -4,7 +4,7 @@
 
 # astralix Userbot
 
-Telegram userbot with a locally built **astralix-tl** library.
+Telegram userbot with **astralix-tl** installed from `radiocycle/astralix-tl` on GitHub. Installing dependencies requires Git access to that private repository.
 Project repository: **radiocycle/astralix** (private). There are no project Telegram channels or support chats.
 
 ## Install from the source directory

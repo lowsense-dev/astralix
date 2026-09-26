@@ -79,28 +79,16 @@ class CoreMod(loader.Module):
         return f"{str(chatid)}.{module}" if module else chatid
 
     @loader.command(
-        ru_doc="Информация о Хероку",
+        ru_doc="Информация об astralix",
         en_doc="Information of astralix",
-        ua_doc="Інформація про Хероку",
+        ua_doc="Інформація про astralix",
         de_doc="Informationen über astralix",
     )
     async def astralixcmd(self, message: Message):
 
-        branch_text = ""
-        if version.branch == "master":
-            branch_text = ""
-        elif version.branch == "beta" or self.tg_id in [
-            1714120111,
-            1226061708,
-            5717135725,
-        ]:
-            branch_text = self.strings["happy_beta"].format(version.branch)
-        else:
-            branch_text = self.strings["unstable"].format(version.branch)
-
         if self.config["rich_mode"]:
             rich_message = self.strings["rich_astralix_message"].format(
-                platform=utils.get_platform_emoji(),
+                platform="astralix",
                 version=".".join(map(str, version.__version__)),
                 build=utils.get_commit_url(),
                 htl_version=astralixtl.__version__,
@@ -108,8 +96,6 @@ class CoreMod(loader.Module):
                 current_user=getpass.getuser(),
                 banner_url="",
             )
-            if branch_text:
-                rich_message += f"<footer>{branch_text.strip()}</footer>"
             await utils.answer(
                 message,
                 rich_message=rich_message,
@@ -120,16 +106,11 @@ class CoreMod(loader.Module):
         await utils.answer(
             message,
             self.strings["astralix"].format(
-                (
-                    utils.get_platform_emoji()
-                    if self._client.astralix_me.premium
-                    else "🪐 <b>astralix Userbot</b>"
-                ),
+                "astralix",
                 *version.__version__,
                 utils.get_commit_url(),
                 f"{astralixtl.__version__} #{astralixtl.tl.alltlobjects.LAYER}",
-            )
-            + (branch_text),
+            ),
             file=str(LOGO_PATH),
             reply_to=getattr(message, "reply_to_msg_id", None),
         )

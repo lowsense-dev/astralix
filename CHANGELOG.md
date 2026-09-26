@@ -1,5 +1,5 @@
 # astralix Changelog
-## 🪐 astralix 2.1.0
+## ✨ astralix 2.1.0
 
  - fix security check in help
  - fix blockquote in config and info
@@ -130,7 +130,7 @@
  - store bot's ID and user information in client instance
  - enhance reaction handling and improve message text update logic
 
-## 🪐 astralix 2.0.0
+## ✨ astralix 2.0.0
 
 - rework utils
 - add prefix to start message
@@ -247,7 +247,7 @@
 - fix restore button invoke
 - improve logging logic
 
-## 🪐 astralix 1.7.2
+## ✨ astralix 1.7.2
 
 - added autoupdate
 - updated astralix-tl to 1.7.2
@@ -284,7 +284,7 @@
 - added quote for list commands in help
 - fix banner in .presets command
 
-## 🪐 astralix 1.7.1
+## ✨ astralix 1.7.1
 
 - fixed bug with web 
 - fixed bug with executor
@@ -301,7 +301,7 @@
 - fixed error with "method not mounted"
 - added bot polling sleep log to ignore filter
 
-## 🪐 astralix 1.7.0
+## ✨ astralix 1.7.0
 
 - added banner to ping
 - added config for emoji in config (.cfg astralixconfig)
@@ -325,7 +325,7 @@
 - updated inline bot stack
 - fix some bugs with buttons in inline
 
-## 🪐 astralix 1.6.8
+## ✨ astralix 1.6.8
 
 - Finally renamed to astralix and new Emoji
 - many changes and improvements

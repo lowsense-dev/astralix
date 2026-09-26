@@ -45,12 +45,7 @@ from ._internal import (
     PrivateRotatingFileHandler,
     RedactingFormatter,
     redact,
-    get_branch_name,
     get_client_id,
-    check_commit_ancestor,
-    reset_to_master,
-    restore_worktree,
-    restart,
 )
 from .tl_cache import CustomTelegramClient
 from .types import BotInlineCall, Module, CoreOverwriteError
@@ -385,7 +380,7 @@ class TelegramLogsHandler(logging.Handler):
     ):
         chunks = (
             item.message
-            + "\n\n<b>🪐 Full traceback:</b>\n"
+            + "\n\n<b>✨ Full traceback:</b>\n"
             + f'<pre><code class="language-python">{item.full_stack}</code></pre>'
         )
 
@@ -472,7 +467,7 @@ class TelegramLogsHandler(logging.Handler):
                             reply_markup=self._mods[client_id].inline.generate_markup(
                                 [
                                     {
-                                        "text": "🪐 Full traceback",
+                                        "text": "✨ Full traceback",
                                         "callback": self._show_full_trace,
                                         "args": (
                                             self._mods[client_id].inline.bot,
@@ -637,11 +632,6 @@ class TelegramLogsHandler(logging.Handler):
                 self.buffer = []
             finally:
                 self.release()
-
-
-async def check_branch(me_id: int, allowed_ids: list, self):
-    """Private forks do not require an upstream beta allowlist."""
-    return
 
 
 _main_formatter = RedactingFormatter(

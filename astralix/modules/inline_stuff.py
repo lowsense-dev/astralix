@@ -51,7 +51,7 @@ class InlineStuff(loader.Module):
 
         await message.delete()
 
-        m = await message.respond("🪐", reply_to=utils.get_topic(message))
+        m = await message.respond("✨", reply_to=utils.get_topic(message))
 
         await self.inline.gallery(
             message=m,
@@ -126,9 +126,9 @@ class InlineStuff(loader.Module):
                     str(LOGO_PATH),
                     caption=self.strings["this_is_astralix"].format(
                         (
-                            "<tg-emoji emoji-id=5463379725441341739>🪐</tg-emoji>"
+                            "✨"
                             if self._client.astralix_me.premium is True
-                            else "🪐"
+                            else "✨"
                         ),
                         utils.get_platform_emoji() if self._client.astralix_me.premium is True else "astralix",
                     ),

@@ -45,10 +45,11 @@ class CoreAuditTests(unittest.IsolatedAsyncioTestCase):
                 cache.save('repo','huge','яяяя')
                 self.assertIsNone(cache.fetch('repo','huge'))
 
-    def test_tl_dependency_uses_patched_source(self):
-        source=Path(loader.IMPORT_PIP_ALIASES['astralixtl'])
-        self.assertTrue(source.is_absolute())
-        self.assertTrue((source/'pyproject.toml').is_file())
+    def test_tl_dependency_uses_project_repository(self):
+        source = "git+https://github.com/radiocycle/astralix-tl.git"
+        self.assertEqual(loader.IMPORT_PIP_ALIASES['astralixtl'], source)
+        requirements = Path(__file__).resolve().parents[1] / 'requirements.txt'
+        self.assertIn(source, requirements.read_text().splitlines())
 
     async def test_failed_rollback_does_not_restart(self):
         module=UpdaterMod()

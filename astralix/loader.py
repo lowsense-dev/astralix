@@ -162,7 +162,7 @@ VALID_APT_PACKAGES = re.compile(
 IMPORT_PIP_ALIASES = {
     "sklearn": "scikit-learn",
     "pil": "Pillow",
-    "astralixtl": str(Path(__file__).resolve().parent.parent / "vendor" / "astralixtl-sources"),
+    "astralixtl": "git+https://github.com/radiocycle/astralix-tl.git",
     "markdown_it": "markdown-it-py",
 }
 

@@ -104,7 +104,7 @@ class TokenObtainment(InlineUnit):
                 username = f"@{genran}_{uid}_bot"
 
             for msg in [
-                "🪐 astralix Userbot"[:64],
+                "✨ astralix Userbot"[:64],
                 username,
                 "/setinline",
                 username,

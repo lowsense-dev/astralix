@@ -172,7 +172,7 @@ class Database(dict):
             content_channel, _ = await utils.asset_channel(
                 client=self._client,
                 title="astralix-userbot",
-                description="🪐 Content related to astralix will be here",
+                description="✨ Content related to astralix will be here",
                 silent=True,
                 invite_bot=True,
                 avatar=str(CHAT_AVATAR_PATH),
