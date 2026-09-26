@@ -32,8 +32,6 @@ Existing Heroku data is not automatically renamed: keep its backup and use a sep
 ## Development
 
 ```bash
-.venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -O -m unittest discover -s tests -v
 uv pip check --python .venv/bin/python
 ```
 
