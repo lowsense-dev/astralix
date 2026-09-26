@@ -284,11 +284,11 @@ class Help(loader.Module):
                 "\n", "<br>"
             )
             rich_message = (
-                f"{rich_reply}<h2>{self.strings['rich_commands']}</h2>"
-                f"{rich_commands}{rich_inline_commands}"
+                f"{rich_reply}<details><summary>{self.strings['rich_commands']}</summary>"
+                f"{rich_commands}{rich_inline_commands}</details>"
                 + (
-                    f"<h2>{self.strings['rich_placeholders']}</h2>"
-                    f"<p>{placeholders}</p>"
+                    f"<details><summary>{self.strings['rich_placeholders']}</summary>"
+                    f"<p>{placeholders}</p></details>"
                     if placeholders
                     else ""
                 )
@@ -497,7 +497,7 @@ class Help(loader.Module):
                     if self.config["banner_url"]
                     else ""
                 )
-                + f"{self.config['desc_icon']} {reply}" 
+                + f"{self.config['desc_icon']} {reply}"
             )
             rich_core = "".join(f"<p>{item.strip()}</p>" for item in core_)
             rich_modules = "".join(
@@ -514,7 +514,7 @@ class Help(loader.Module):
                     (self.strings["rich_modules"], rich_modules),
                 ]
             rich_message += "".join(
-                f"<h2>{title}</h2>{content}"
+                f"<details><summary>{title}</summary>{content}</details>"
                 for title, content in sections
                 if content
             )
