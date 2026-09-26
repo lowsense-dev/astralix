@@ -27,7 +27,6 @@ from astralixtl.types import InputMediaWebPage
 
 
 from .. import loader, utils
-from .._branding import HELP_BANNER_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +66,7 @@ class Help(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                None,
+                "https://raw.githubusercontent.com/radiocycle/astralix/main/assets/help-banner.png",
                 lambda: "Banner for .help",
                 validator=loader.validators.RandomLink(),
             ),
@@ -285,11 +284,11 @@ class Help(loader.Module):
                 "\n", "<br>"
             )
             rich_message = (
-                f"{rich_reply}<details><summary>{self.strings['rich_commands']}</summary>"
-                f"{rich_commands}{rich_inline_commands}</details>"
+                f"{rich_reply}<h2>{self.strings['rich_commands']}</h2>"
+                f"{rich_commands}{rich_inline_commands}"
                 + (
-                    f"<details><summary>{self.strings['rich_placeholders']}</summary>"
-                    f"{placeholders}</details>"
+                    f"<h2>{self.strings['rich_placeholders']}</h2>"
+                    f"<p>{placeholders}</p>"
                     if placeholders
                     else ""
                 )
@@ -345,7 +344,7 @@ class Help(loader.Module):
             banner = InputMediaWebPage(str(self.config["banner_url"]))
 
         if not self.config["banner_url"]:
-            banner = str(HELP_BANNER_PATH)
+            banner = None
 
         force = False
         if "-f" in args:
@@ -515,15 +514,14 @@ class Help(loader.Module):
                     (self.strings["rich_modules"], rich_modules),
                 ]
             rich_message += "".join(
-                f"<details><summary>{title}</summary>{content}</details>"
+                f"<h2>{title}</h2>{content}"
                 for title, content in sections
                 if content
             )
             if not self.lookup("LoaderMod").fully_loaded:
                 rich_message += f"<p>{self.strings['partial_load']}</p>"
-            await utils.answer_with_banner(
+            await utils.answer_with_media_fallback(
                 message, rich_message=rich_message,
-                banner=HELP_BANNER_PATH if not self.config["banner_url"] else None,
             )
             return
 

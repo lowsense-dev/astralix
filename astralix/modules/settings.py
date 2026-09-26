@@ -16,7 +16,6 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from .._branding import ASTRALIX_BANNER_PATH
 import getpass
 import astralixtl
 from astralixtl.tl.types import Message, User
@@ -33,6 +32,12 @@ class CoreMod(loader.Module):
 
     def __init__(self):
         self.config = loader.ModuleConfig(
+            loader.ConfigValue(
+                "banner_url",
+                "https://raw.githubusercontent.com/radiocycle/astralix/main/assets/astralix-banner.png",
+                "Banner for .astralix",
+                validator=loader.validators.Link(),
+            ),
             loader.ConfigValue(
                 "allow_nonstandart_prefixes",
                 False,
@@ -96,15 +101,16 @@ class CoreMod(loader.Module):
                 current_user=getpass.getuser(),
                 banner_url="",
             )
-            await utils.answer_with_banner(
+            if self.config["banner_url"]:
+                rich_message = f'<img src="{utils.escape_html(str(self.config["banner_url"]))}"/>' + rich_message
+            await utils.answer_with_media_fallback(
                 message,
                 rich_message=rich_message,
-                banner=ASTRALIX_BANNER_PATH,
                 reply_to=getattr(message, "reply_to_msg_id", None),
             )
             return
 
-        await utils.answer(
+        await utils.answer_with_media_fallback(
             message,
             self.strings["astralix"].format(
                 "astralix",
@@ -112,7 +118,7 @@ class CoreMod(loader.Module):
                 utils.get_commit_url(),
                 f"{astralixtl.__version__} #{astralixtl.tl.alltlobjects.LAYER}",
             ),
-            file=str(ASTRALIX_BANNER_PATH),
+            file=self.config["banner_url"] or None,
             reply_to=getattr(message, "reply_to_msg_id", None),
         )
 

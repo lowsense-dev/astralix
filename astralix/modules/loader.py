@@ -215,25 +215,9 @@ class LoaderMod(loader.Module):
             return f"{parts[0]}/{parts[1]}"
         return repo
 
-    async def _check_pass(self, message: Message | InlineCall) -> bool:
-        if self.db.get("LoaderRestrictor", "passed", False):
-            return False
-
-        if not self.inline.init_complete:
-            return False # in case the inline bot did not start successfully,
-                         # allow the user to install the modules
-
-        await utils.answer(
-            message,
-            self.strings["verify_required"].format(self.inline.bot_username),
-        )
-        return True
 
     @loader.command(alias="dlm")
     async def dlmod(self, message: Message, force_pm: bool = False):
-        if await self._check_pass(message):
-            return
-
         if args := utils.get_args(message):
             match args:
                 case [single]:
@@ -303,9 +287,6 @@ class LoaderMod(loader.Module):
 
     @loader.command()
     async def dlmall(self, message: Message):
-        if await self._check_pass(message):
-            return
-
         repos = [self.config["MODULES_REPO"]] + self.config["ADDITIONAL_REPOS"]
         repos = [r for r in repos if r.startswith("http")]
         buttons = [
@@ -481,9 +462,8 @@ class LoaderMod(loader.Module):
         def section(title: str, lines: list[str], suffix: str = ""):
             if rich:
                 parts.append(
-                    f"<details><summary>{title}{suffix}</summary>"
+                    f"<h2>{title}{suffix}</h2>"
                     + "".join(f"<p>{line}</p>" for line in lines)
-                    + "</details>"
                 )
             else:
                 parts.append(f"\n\n<b>{title}</b>{suffix}")
@@ -650,16 +630,10 @@ class LoaderMod(loader.Module):
         path_: str,
         mode: str,
     ):
-        if await self._check_pass(call):
-            return
-
         await self.load_module(doc, call, origin=path_ or "<string>", save_fs=True)
 
     @loader.command(alias="lm")
     async def loadmod(self, message: Message):
-        if await self._check_pass(message):
-            return
-
         msg = message if message.file else (await message.get_reply_message())
 
         if msg is None or msg.media is None:

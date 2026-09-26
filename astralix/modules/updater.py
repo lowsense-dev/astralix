@@ -90,18 +90,6 @@ class UpdaterMod(loader.Module):
             ),
         )
 
-    async def _set_autoupdate_state(self, call: BotInlineCall, state: bool):
-        self.set("autoupdate_answered", True)
-        self.config["autoupdate"] = state
-
-        text = (
-            self.strings["autoupdate_on"]
-            if state
-            else self.strings["autoupdate_off"].format(prefix=self.get_prefix())
-        )
-
-        await self.inline.bot(call.answer(text, show_alert=True))
-        await call.delete()
 
     @staticmethod
     def _is_emfile_error(error: BaseException) -> bool:
@@ -613,9 +601,6 @@ class UpdaterMod(loader.Module):
                 self._git_available = False
                 logger.info("Git checkout unavailable; restart remains enabled")
 
-        if not self.get("autoupdate_answered"):
-            self.set("autoupdate_answered", self.get("autoupdate", False))
-
         self._markup = lambda: self.inline.generate_markup(
             [
                 {
@@ -647,34 +632,6 @@ class UpdaterMod(loader.Module):
 
             self.set("do_not_create", True)
 
-        if self._git_available and not self.config["autoupdate"] and not self.get("autoupdate_answered", False):
-            try:
-                await self.inline.bot.send_message(
-                    self.tg_id,
-                    text=self.strings["autoupdate"],
-                    reply_markup=self.inline.generate_markup(
-                        [
-                            [
-                                {
-                                    "text": "✅ Turn on",
-                                    "callback": self._set_autoupdate_state,
-                                    "args": (True,),
-                                    "style": "success",
-                                }
-                            ],
-                            [
-                                {
-                                    "text": "🚫 Turn off",
-                                    "callback": self._set_autoupdate_state,
-                                    "args": (False,),
-                                    "style": "danger",
-                                }
-                            ],
-                        ]
-                    ),
-                )
-            except Exception:
-                logger.warning("Could not show autoupdate prompt; restart remains enabled")
 
     async def _add_folder(self):
         folders = await self._client(GetDialogFiltersRequest())

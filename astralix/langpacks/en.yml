@@ -338,7 +338,7 @@ settings:
   no_alias: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Alias</b> <code>{}</code> <b>does not exist</b>"
   db_cleared: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Database cleared</b>"
   astralix: "{} <b>{}.{}.{}</b> <i>{}</i>\n\n<b><tg-emoji emoji-id=5289608677244811430>📁</tg-emoji> <b>astralix-tl:</b> <i>{}</i>\n\n<tg-emoji emoji-id=5228879218363872764>⌨</tg-emoji> <b>Developers: , </b>"
-  rich_astralix_message: '<h1>{platform}</h1><table bordered><tr><th>Component</th><th>Current release</th></tr><tr><td><b>Version</b></td><td><code>{version}</code></td></tr><tr><td><b>Build</b></td><td>{build}</td></tr><tr><td><b>astralix TL</b></td><td><code>{htl_version}</code></td></tr><tr><td><b>API layer</b></td><td><code>{layer}</code></td></tr><tr><td><b>Current user</b></td><td><code>{current_user}</code></td></tr><tr><td><b>Developers</b></td><td>, </td></tr></table>'
+  rich_astralix_message: '<h1>astralix <code>{version}</code></h1><p>Your Telegram. In your own orbit.</p><p><b>Build</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/radiocycle/astralix">GitHub ↗</a></p>'
   confirm_cleardb: "⚠️ <b>Are you sure, that you want to clear database?</b>"
   cleardb_confirm: "🗑 Clear database"
   cancel: "🚫 Cancel"
@@ -431,6 +431,8 @@ inline_stuff:
 
   _cmd_doc_ch_bot_token: <token> - Change inline bot token
 test:
+  rich_ping_message: '{img}<h1>Ping <code>{ping} ms</code></h1><p><b>Uptime</b> {uptime}</p><p>{platform}</p>'
+  ping_message: '<b>Ping</b> <code>{ping} ms</code> · <b>Uptime</b> {uptime}'
   name: "Tester"
   set_loglevel: "<tg-emoji emoji-id=5355133243773435190>🚫</tg-emoji> <b>Please specify verbosity as an integer or string</b>"
   no_logs: "<tg-emoji emoji-id=5355133243773435190>🤷‍♀️</tg-emoji> <b>You don't have any logs at verbosity</b> <code>{}</code><b>.</b>"
@@ -488,7 +490,6 @@ updater:
   rollback_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Are you sure you want to rollback {num} commit(-s)?</b>"
   rollback_process: "<tg-emoji emoji-id=5873204392429096339>🕗</tg-emoji> <b>Rolling {num} commits back...</b>"
   autoupdate_notifier: "<tg-emoji emoji-id=5361979468887893611>🆕</tg-emoji> New astralix update!\n\n🔮 New astralix version #{} is available\n\n<i>Update changelog</i>:\n<blockquote expandable>{}</blockquote>\n{}\n\n<b>Updating...</b>"
-  autoupdate: "🛡 Unit Alpha also allows you to ignore updates and <b>do it automatically</b>!\n\n💫 However, major updates such as changing the global version (1.x.x -> 2.x.x) will be ignored for automatic updates and you will have to update manually"
   autoupdate_on: "🎆 Automatic updates <b>have been enabled!\nEnjoy using it!</b>"
   autoupdate_off: "❌ Automatic updates <b>have been disabled!</b>\nTo enable them, use the command <code>{prefix}autoupdate</code>"
   announcement: "<b>📢 Announcement:</b>\n\n<blockquote>{}</blockquote>"
@@ -555,7 +556,7 @@ help:
 astralix_info:
   missing_placeholder: "<tg-emoji emoji-id=5210952531676504517>🚫</tg-emoji> Missing {placeholder} placeholder"
   info_message: "{}\n<blockquote>┌\n├  【<tg-emoji emoji-id=5883964170268840032>👤</tg-emoji>】 <b>𝙾𝚠𝚗𝚎𝚛</b>: {me}\n├  【<tg-emoji emoji-id=5931415565955503486>🤖</tg-emoji>】 <b>𝚅𝚎𝚛𝚜𝚒𝚘𝚗</b>: {version}\n└</blockquote>\n<blockquote>┌\n├  【<tg-emoji emoji-id=5778335621491723621>📷</tg-emoji>】 <b>𝙿𝚛𝚎𝚏𝚒𝚡</b>: {prefix}⠀ ⠀ \n├  【<tg-emoji emoji-id=5843799474362652262>🔄</tg-emoji>】 <b>𝚄𝚙𝚝𝚒𝚖𝚎</b>: {uptime}\n├  【<tg-emoji emoji-id=5879770735999717115>👤</tg-emoji>】 <b>𝙱𝚛𝚊𝚗𝚌𝚑</b>: {branch}\n└</blockquote>\n<blockquote>┌\n├  【<tg-emoji emoji-id=5775887550262546277>❗️</tg-emoji>】 <b>𝙲𝙿𝚄</b>: {cpu_usage}\n├  【<tg-emoji emoji-id=5931409969613116639>🛡</tg-emoji>】 <b>𝚁𝙰𝙼</b>: {ram_usage}\n├  【<tg-emoji emoji-id=5931472654660800739>📊</tg-emoji>】 <b>𝙿𝚒𝚗𝚐</b>: {ping}\n└</blockquote>\n<blockquote>┌\n├  【<tg-emoji emoji-id=5926783847453692661>🛡</tg-emoji>】 <b>𝚄𝚙𝚍𝚊𝚝𝚎</b>: {upd}\n├  【<tg-emoji emoji-id=5931415565955503486>🤖</tg-emoji>】 <b>𝙷𝚘𝚜𝚝</b>: {platform}\n├  【<tg-emoji emoji-id=5819078828017849357>🤖</tg-emoji>】 <b>𝙾𝚂</b>: {os}\n├  【<tg-emoji emoji-id=5819078828017849357>🤖</tg-emoji>】 <b>𝙿𝚢𝚝𝚑𝚘𝚗 𝚅𝚎𝚛𝚜𝚒𝚘𝚗</b>: {python_ver}\n└</blockquote>"
-  rich_info_message: '<details><summary>Overview</summary><table><tr><th>Overview</th><th>Owner</th></tr><tr><td>【<tg-emoji emoji-id=5883964170268840032>👤</tg-emoji>】 <b>Owner</b></td><td>{me}</td></tr><tr><td>【<tg-emoji emoji-id=5931415565955503486>🤖</tg-emoji>】 <b>Version</b></td><td>{version}</td></tr><tr><td>【<tg-emoji emoji-id=5778335621491723621>📷</tg-emoji>】 <b>Prefix</b></td><td>{prefix}</td></tr><tr><td>【<tg-emoji emoji-id=5843799474362652262>🔄</tg-emoji>】 <b>Uptime</b></td><td>{uptime}</td></tr><tr><td>【<tg-emoji emoji-id=5879770735999717115>👤</tg-emoji>】 <b>Branch</b></td><td>{branch}</td></tr></table></details><details><summary>Status</summary><table><tr><th>Status</th><th>Updates</th></tr><tr><td>【<tg-emoji emoji-id=5926783847453692661>🛡</tg-emoji>】 <b>Updates</b></td><td>{upd}</td></tr><tr><td>【<tg-emoji emoji-id=5775887550262546277>❗️</tg-emoji>】 <b>CPU</b></td><td>{cpu_usage}</td></tr><tr><td>【<tg-emoji emoji-id=5931409969613116639>🛡</tg-emoji>】 <b>RAM</b></td><td>{ram_usage}</td></tr><tr><td>【<tg-emoji emoji-id=5931472654660800739>📊</tg-emoji>】 <b>Ping</b></td><td>{ping}</td></tr></table></details><details><summary>Environment</summary><table><tr><th>Environment</th><th>OS</th></tr><tr><td>【<tg-emoji emoji-id=5931415565955503486>🤖</tg-emoji>】 <b>Host</b></td><td>{platform}</td></tr><tr><td>【<tg-emoji emoji-id=5819078828017849357>🤖</tg-emoji>】 <b>OS</b></td><td>{os}</td></tr><tr><td>【<tg-emoji emoji-id=5819078828017849357>🤖</tg-emoji>】 <b>Python</b></td><td>{python_ver}</td></tr></table></details>'
+  rich_info_message: '{img}<h1>astralix</h1><p>{me} · {version}</p><p><b>Ping</b> {ping} ms · <b>Uptime</b> {uptime}</p><p><b>Prefix</b> {prefix} · <b>Branch</b> <code>{branch}</code></p><h2>System</h2><p>{platform} · {os}<br>Python {python_ver} · astralix-tl {htl_ver}</p><p><b>CPU</b> {cpu_usage}% · <b>RAM</b> {ram_usage}</p><p><b>Updates</b> {upd}</p>'
   non_detectable: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>This component cannot be detected on your server!</b>"
   ping_emoji: "emoji for ping in your info"
   send_info: "Send userbot info"
@@ -677,39 +678,6 @@ loader:
   _cmd_doc_dlmall: Install all modules from selected repository
   _cmd_doc_ml: <module> - Send module as a file
   result: "<tg-emoji emoji-id=5337183664630709422>🔎</tg-emoji> <b>Search result for</b> <code>{query}</code>\n\n<tg-emoji emoji-id=5258270535710317499>📦</tg-emoji> <b>{name}</b> by <b>{dev}</b>\n<tg-emoji emoji-id=5879813604068298387>ℹ️</tg-emoji> <i>{cls_doc}</i>\n<tg-emoji emoji-id=5372981976804366741>🤖</tg-emoji> <b>Commands:</b>\n{commands}\n\n✨ <code>{prefix}dlmod {mhash}</code>"
-  verify_required: '<tg-emoji emoji-id=5188463524568926712>⚠️</tg-emoji> <b>To unlock the ability to install third-party modules, complete the test in <a href="https://t.me/{}?start=lm_verify">your bot</a></b>'
-loader_restrictor:
-  name: "LoaderRestrictor"
-  q1: "What can any module you install actually do?"
-  q1_ans1: "Exactly what its description says - nothing more"
-  q1_ans2: "Read messages only in the chat where it was called"
-  q1_ans3: "Act only when you explicitly call its command"
-  q1_ans4: "The same as you in Telegram, and more: sending gifts, deleting your account"
-  q1_hint: "Although the userbot has basic protection against dangerous requests, a module can still gain full control of your account"
-  q2: "A stranger messages you and asks you to test their module. What do you do?"
-  q2_ans1: "Sure, why not help them?"
-  q2_ans2: "Check the code myself/with AI. If unsure, report with #check_scam"
-  q2_ans3: "Ask the author if it's safe and take their word for it"
-  q2_ans4: "Install it on another account to test it - that's safer"
-  q2_hint: "Any module not from official developer channels should be checked for dangerous code. Don't put yourself at risk!"
-  q3: "Can a module work with the files and system of the server/hosting, not just Telegram?"
-  q3_ans1: "No, a module only works inside Telegram and can't see other files"
-  q3_ans2: "Only if it has a separate permission from Telegram"
-  q3_ans3: "Yes - a module is part of the userbot: it can read, change, delete files"
-  q3_ans4: "Only photos and videos from Telegram"
-  q3_hint: "The userbot is a Python program running on your server. A module is part of that same program, with the same rights"
-  q4: "Would you notice if a module started acting without your permission (data theft, etc.)?"
-  q4_ans1: "Yes, Telegram would immediately notify me about suspicious activity"
-  q4_ans2: "Yes, I'd notice suspicious logs from the module"
-  q4_ans3: "No, but the userbot's basic protection should catch such activity"
-  q4_ans4: "Not necessarily - a module can act invisibly, without any notifications, until it's too late"
-  q4_hint: "Stealth is the main danger of malicious modules: without checking the code beforehand, you might simply not notice a problem until it's too late"
-  timeout: "<tg-emoji emoji-id=5447644880824181073>⚠️</tg-emoji> <b>You didn't answer all the questions in time. You can try again by sending</b> <code>/start lm_verify</code>"
-  failed: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Wrong answer. To unlock third-party module installation, try again by sending</b> <code>/start lm_verify</code>"
-  already_passed: "<tg-emoji emoji-id=5118861066981344121>✅</tg-emoji> <b>You've already passed the check - third-party module installation is unlocked</b>"
-  unlock_prompt: "<tg-emoji emoji-id=5447644880824181073>⚠️</tg-emoji> <b>To unlock third-party module installation, complete a short check</b>"
-  unlock_prompt_btn: "Take the check"
-  unlocked: "<tg-emoji emoji-id=5118861066981344121>✅</tg-emoji> <b>Check passed, third-party module installation is unlocked</b>"
 translations:
   name: "Translations"
   lang_saved: "{} <b>Language saved!</b>"

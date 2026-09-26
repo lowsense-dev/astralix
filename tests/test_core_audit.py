@@ -86,26 +86,52 @@ class CoreAuditTests(unittest.IsolatedAsyncioTestCase):
                     await module.restart(message)
                 module.restart_common.assert_awaited_once_with(message, False)
 
-    async def test_autoupdate_prompt_failure_does_not_unload_updater(self):
+    async def test_updater_start_does_not_send_autoupdate_prompt(self):
         from astralix.modules import updater
         with patch.object(updater, 'NO_GIT', False):
             module = UpdaterMod()
             module.get = Mock(side_effect=lambda key, default=None: {'do_not_create': True}.get(key, default))
             module.set = Mock()
-            module.strings = {'autoupdate': 'Enable automatic updates?'}
-            module.tg_id = 1
-            module.inline = Mock(bot=Mock(send_message=AsyncMock(side_effect=RuntimeError('unavailable'))))
+            module.inline = Mock(bot=Mock(send_message=AsyncMock(), send_photo=AsyncMock()))
             with patch.object(updater.git, 'Repo', return_value=MagicMock()):
                 await module.client_ready()
-            module.inline.bot.send_message.assert_awaited_once()
+            module.inline.bot.send_message.assert_not_awaited()
+            module.inline.bot.send_photo.assert_not_awaited()
 
-    async def test_local_banner_is_uploaded_without_exposing_file_path_in_rich_html(self):
-        from astralix.utils import messages
-        message = Mock(client=Mock(send_file=AsyncMock()), reply_to_msg_id=10)
-        with patch.object(messages, 'get_chat_id', return_value=123), patch.object(messages, 'answer_with_media_fallback', new=AsyncMock()) as answer:
-            await messages.answer_with_banner(message, banner='/tmp/banner.png', rich_message='<h1>astralix</h1>')
-        message.client.send_file.assert_awaited_once_with(123, '/tmp/banner.png', reply_to=10, silent=True)
-        answer.assert_awaited_once_with(message, rich_message='<h1>astralix</h1>')
+    async def test_backup_setup_sends_text_instead_of_empty_photo(self):
+        from astralix.modules.astralix_backup import AstralixBackupMod
+        from astralix.modules import astralix_backup
+        module = AstralixBackupMod()
+        module.get = Mock(return_value=None)
+        module.tg_id = 1
+        module._db = Mock()
+        module.strings = {'period': 'Choose backup interval'}
+        module.inline = Mock(bot=Mock(send_message=AsyncMock(), send_photo=AsyncMock()))
+        with patch.object(astralix_backup.utils, 'wait_for_content_channel', new=AsyncMock(return_value=123)):
+            await module.client_ready()
+        module.inline.bot.send_message.assert_awaited_once()
+        module.inline.bot.send_photo.assert_not_awaited()
+        self.assertEqual(module._content_channel_id, 123)
+
+    def test_rich_templates_are_open_and_keep_embedded_banner(self):
+        from ruamel.yaml import YAML
+        from string import Formatter
+        root = Path(__file__).resolve().parents[1]
+        for language in ('en', 'ru'):
+            pack = YAML(typ='safe').load((root / 'astralix/langpacks' / (language + '.yml')).read_text())
+            self.assertNotIn('loader_restrictor', pack)
+            self.assertNotIn('verify_required', pack['loader'])
+            self.assertNotIn('autoupdate', pack['updater'])
+            for section, key in (('astralix_info', 'rich_info_message'), ('settings', 'rich_astralix_message'), ('test', 'rich_ping_message')):
+                template = pack[section][key]
+                fields = {field: 'value' for _, field, _, _ in Formatter().parse(template) if field}
+                fields['img'] = '<img src="https://example.com/banner.png"/>'
+                rendered = template.format(**fields)
+                self.assertIn('<h1>', rendered)
+                self.assertNotIn('<details', rendered)
+                self.assertNotIn('<table', rendered)
+                if key != 'rich_astralix_message':
+                    self.assertIn('<img src=', rendered)
 
     async def test_fresh_start_uses_browser_before_console_api_prompt(self):
         app = main.Astralix.__new__(main.Astralix)

@@ -16,7 +16,6 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from .._branding import INFO_BANNER_PATH
 import time
 import logging
 import astralixtl
@@ -58,7 +57,7 @@ class AstralixInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "",
+                "https://raw.githubusercontent.com/radiocycle/astralix/main/assets/info-banner.png",
                 lambda: self.strings["_cfg_banner"],
                 validator=loader.validators.String(),
             ),
@@ -248,9 +247,8 @@ class AstralixInfoMod(loader.Module):
         start = time.perf_counter_ns()
 
         if self.config["rich_mode"]:
-            await utils.answer_with_banner(
+            await utils.answer_with_media_fallback(
                 message,
-                banner=INFO_BANNER_PATH if not self.config["banner_url"] else None,
                 rich_message=await self._render_info(
                     start,
                     template_key="rich_info_message",
@@ -265,7 +263,7 @@ class AstralixInfoMod(loader.Module):
             media = InputMediaWebPage(str(self.config["banner_url"]), optional=True)
 
         elif not self.config["banner_url"]:
-            media = str(INFO_BANNER_PATH)
+            media = None
 
         try:
             custom_message = self.config["custom_message"]

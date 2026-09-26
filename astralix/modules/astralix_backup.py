@@ -56,10 +56,9 @@ class AstralixBackupMod(loader.Module):
 
     async def client_ready(self):
         if not self.get("period"):
-            await self.inline.bot.send_photo(
+            await self.inline.bot.send_message(
                 self.tg_id,
-                photo=None,
-                caption=self.strings["period"],
+                text=self.strings["period"],
                 reply_markup=self.inline.generate_markup(
                     utils.chunks(
                         [

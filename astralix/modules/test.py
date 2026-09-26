@@ -17,7 +17,6 @@
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
 import getpass
-from .._branding import PING_BANNER_PATH
 import inspect
 import logging
 import os
@@ -33,6 +32,7 @@ from .. import loader, main, utils
 from ..inline.types import InlineCall
 
 logger = logging.getLogger(__name__)
+LEGACY_PING_TEMPLATE = "<tg-emoji emoji-id=5920515922505765329>⚡️</tg-emoji> <b>𝙿𝚒𝚗𝚐: </b><code>{ping}</code><b> 𝚖𝚜 </b>\n<tg-emoji emoji-id=5900104897885376843>🕓</tg-emoji><b> 𝚄𝚙𝚝𝚒𝚖𝚎: </b><code>{uptime}</code>"
 
 DEBUG_MODS_DIR = os.path.join(utils.get_base_dir(), "debug_modules")
 
@@ -96,7 +96,7 @@ class TestMod(loader.Module):
             ),
             loader.ConfigValue(
                 "custom_message",
-                "<tg-emoji emoji-id=5920515922505765329>⚡️</tg-emoji> <b>𝙿𝚒𝚗𝚐: </b><code>{ping}</code><b> 𝚖𝚜 </b>\n<tg-emoji emoji-id=5900104897885376843>🕓</tg-emoji><b> 𝚄𝚙𝚝𝚒𝚖𝚎: </b><code>{uptime}</code>",
+                "",
                 lambda: (
                     self.strings["configping"]
                     + (
@@ -124,7 +124,7 @@ class TestMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                None,
+                "https://raw.githubusercontent.com/radiocycle/astralix/main/assets/ping-banner.png",
                 lambda: self.strings["banner_url"],
                 validator=loader.validators.RandomLink(),
             ),
@@ -418,7 +418,7 @@ class TestMod(loader.Module):
             banner = InputMediaWebPage(str(self.config["banner_url"]), optional=True)
 
         elif not self.config["banner_url"]:
-            banner = str(PING_BANNER_PATH)
+            banner = None
 
         data = {
             "ping": round((time.perf_counter_ns() - start) / 10**6, 3),
@@ -435,18 +435,21 @@ class TestMod(loader.Module):
                 else ""
             ),
         }
-        data = await utils.get_placeholders(data, self.config["custom_message"])
+        template = self.config["custom_message"]
+        default_template = not template or template == LEGACY_PING_TEMPLATE
+        if default_template:
+            template = self.strings["rich_ping_message" if self.config["rich_mode"] else "ping_message"]
+        data = await utils.get_placeholders(data, template)
         try:
-            placeholders_msg = self.config["custom_message"].format(**data)
+            placeholders_msg = template.format(**data)
         except KeyError:
             logger.exception("Missing placeholder in custom_message")
             placeholders_msg = "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji>"
         if self.config["rich_mode"]:
             rich_message = placeholders_msg.replace("\r\n", "<br>").replace("\n", "<br>")
-            await utils.answer_with_banner(
+            await utils.answer_with_media_fallback(
                 message,
                 rich_message=rich_message,
-                banner=PING_BANNER_PATH if not self.config["banner_url"] else None,
             )
             return
 
