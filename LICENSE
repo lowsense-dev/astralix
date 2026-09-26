@@ -1,5 +1,5 @@
 astralix Userbot
-Copyright (C) 2026 radiocycle — astralix modifications
+Copyright (C) 2026 LowSense — astralix modifications
 https://github.com/lowsense-dev/astralix
 
 This program is free software: you can redistribute it and/or modify
@@ -12,8 +12,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU Affero General Public License below for more details.
 
 Upstream copyright notices remain applicable. See COPYRIGHT.md and
-THIRD_PARTY_NOTICES.md. The separately vendored astralix-tl library
-retains its MIT license; see vendor/astralixtl-sources/LICENSE.md.
+THIRD_PARTY_NOTICES.md. The separately installed astralix-tl library
+retains its MIT license; see https://github.com/lowsense-dev/astralix-tl/blob/main/LICENSE.md.
 
 ------------------------------------------------------------------------
 

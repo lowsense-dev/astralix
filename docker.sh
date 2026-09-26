@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©️ radiocycle, 2026
+# ©️ LowSense, 2026
 # This file is a part of astralix Userbot
 # 🌐 https://github.com/lowsense-dev/astralix
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3

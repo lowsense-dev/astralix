@@ -1,4 +1,4 @@
-/* © radiocycle, 2026 · astralix Userbot · GNU AGPLv3
+/* © LowSense, 2026 · astralix Userbot · GNU AGPLv3
    https://github.com/lowsense-dev/astralix */
 "use strict";
 (() => {

@@ -35,4 +35,4 @@ Existing Heroku data is not automatically renamed: keep its backup and use a sep
 uv pip check --python .venv/bin/python
 ```
 
-See [upstream attribution](THIRD_PARTY_NOTICES.md). The userbot retains its AGPL-3.0 license; the vendored Telegram library retains its MIT license.
+See [upstream attribution](THIRD_PARTY_NOTICES.md). The userbot retains its AGPL-3.0 license; the separately installed Telegram library retains its MIT license.
