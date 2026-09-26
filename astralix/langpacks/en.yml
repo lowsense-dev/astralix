@@ -200,6 +200,8 @@ astralix_settings:
   core_protection_enabled: "<b>Core protection enabled successfully</b>"
 
 terminal:
+  sticky_sessions_doc: "Keep the working directory and shell environment between commands, including the inline terminal. Off by default. Disabling clears saved state after active commands finish."
+  sticky_sessions_off: "Persistent shell sessions are disabled."
   name: "Terminal"
   fw_protect: "How long to wait in seconds between edits in commands"
   command_protect: "Block clearly destructive terminal commands before execution"

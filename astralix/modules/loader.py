@@ -1351,7 +1351,7 @@ class LoaderMod(loader.Module):
                     "\n<blockquote expandable>{}</blockquote>".format(
                         "\n".join(placeholders)
                     ),
-                    developer if not subscribe or not use_subscribe else "",
+                    developer,
                     depends_from,
                     (
                         self.strings["modlink"].format(origin)
@@ -1359,7 +1359,7 @@ class LoaderMod(loader.Module):
                         else ""
                     ),
                     blob_link,
-                    subscribe if use_subscribe else "",
+                    "",
                 )
             result = self._batch_loaded_message(
                 [instance], [], rich=True, single=True,
@@ -1377,8 +1377,6 @@ class LoaderMod(loader.Module):
                 extra.append(developer)
             if origin != "<string>" and self.config["share_link"]:
                 extra.append(self.strings["modlink"].format(utils.escape_html(origin)))
-            if use_subscribe and subscribe:
-                extra.append(subscribe)
             for text in extra:
                 result += (
                     "<p>" + text.replace("\n", "<br/>") + "</p>"

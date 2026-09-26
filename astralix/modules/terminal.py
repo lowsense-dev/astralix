@@ -510,6 +510,13 @@ class TerminalMod(loader.Module):
     def __init__(self):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
+                "sticky_sessions",
+                False,
+                lambda: self.strings["sticky_sessions_doc"],
+                validator=loader.validators.Boolean(),
+                on_change=self._sticky_sessions_changed,
+            ),
+            loader.ConfigValue(
                 "FLOOD_WAIT_PROTECT",
                 2,
                 lambda: self.strings["fw_protect"],
@@ -527,6 +534,21 @@ class TerminalMod(loader.Module):
         self._inline_sessions: dict[str, InlineMessageEditor] = {}
         self._shell_sessions = {}
         self._shell_jobs = {}
+        self._session_cleanup_tasks = set()
+
+    def _sticky_sessions_changed(self):
+        if not hasattr(self, "_shell_sessions") or self.config["sticky_sessions"]:
+            return
+        # Forget state immediately, but let running commands finish normally.
+        sessions = list(self._shell_sessions.items())
+        self._shell_sessions.clear()
+        for key, session in sessions:
+            job = self._shell_jobs.get(key)
+            if job is not None and not job.done():
+                continue
+            task = asyncio.create_task(session.close())
+            self._session_cleanup_tasks.add(task)
+            task.add_done_callback(self._session_cleanup_tasks.discard)
 
     async def on_unload(self):
         jobs = list(self._shell_jobs.values())
@@ -534,10 +556,13 @@ class TerminalMod(loader.Module):
             task.cancel()
         await asyncio.gather(*jobs, return_exceptions=True)
         await asyncio.gather(*(session.close() for session in self._shell_sessions.values()))
+        await asyncio.gather(*self._session_cleanup_tasks, return_exceptions=True)
         self._shell_sessions.clear()
         self._shell_jobs.clear()
 
     def _reset_markup(self, editor):
+        if not self.config["sticky_sessions"]:
+            return []
         return [[{
             "text": self.strings["btn_reset_session"],
             "callback": self.inline__reset_session,
@@ -546,6 +571,9 @@ class TerminalMod(loader.Module):
 
     async def inline__reset_session(self, call, editor):
         if getattr(call.from_user, "id", None) != self.tg_id:
+            return
+        if not self.config["sticky_sessions"]:
+            await call.answer(self.strings["sticky_sessions_off"], show_alert=True)
             return
         key = editor.session_key
         session = self._shell_sessions.get(key)
@@ -577,11 +605,13 @@ class TerminalMod(loader.Module):
             )
         session = self._shell_sessions[key]
         editor.session_key, editor.shell_session = key, session
-        task = asyncio.create_task(self._execute_shell(key, session, cmd, editor))
+        task = asyncio.create_task(
+            self._execute_shell(key, session, cmd, editor, self.config["sticky_sessions"])
+        )
         self._shell_jobs[key] = task
         return task
 
-    async def _execute_shell(self, key, session, cmd, editor):
+    async def _execute_shell(self, key, session, cmd, editor, keep_session):
         utils.ensure_child_watcher()
         try:
             rc = await session.run(
@@ -597,6 +627,14 @@ class TerminalMod(loader.Module):
         else:
             await editor.cmd_ended(rc)
         finally:
+            if (
+                not keep_session
+                or not self.config["sticky_sessions"]
+                or self._shell_sessions.get(key) is not session
+            ):
+                if self._shell_sessions.get(key) is session:
+                    self._shell_sessions.pop(key, None)
+                await session.close()
             if self._shell_jobs.get(key) is asyncio.current_task():
                 self._shell_jobs.pop(key, None)
 
