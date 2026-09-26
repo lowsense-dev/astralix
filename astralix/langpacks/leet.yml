@@ -312,7 +312,6 @@ presets:
 settings:
   name: "S3771ng5"
   linux: "💎 Linux Device"
-  choose_installation: "<tg-emoji emoji-id=5363805650327450240>🪐</tg-emoji> <b>Ch0053 ur astralix 1n574ll4710n 0p710n:</b>"
   linux_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> 7h3 1n574ll pr0c355 0n 4 Linux Device 15 d0n3 w17h 4 51ngl3 cmd:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>N073: 1f u d0 n07 h4v3 sudo pr1v5, 0m17 7h3 c0rr35p0nd1ng p4r7 0f 7h3 cmd.</i>"
   too_many_args: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>2 m4ny 4rg5</b>"
   blacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Ch47 {} bl4ckl1573d fr0m u53rb07</b>"
