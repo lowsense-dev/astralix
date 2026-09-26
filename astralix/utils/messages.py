@@ -25,6 +25,7 @@ from astralixtl.tl.types import (
     Channel,
     Chat,
     InputDocument,
+    InputMediaWebPage,
     InputReplyToMessage,
     MessageMediaPhoto,
     MessageMediaDocument,
@@ -502,7 +503,7 @@ async def answer(
         await message.edit(response)
         return message
 
-    kwargs.setdefault("link_preview", False)
+    kwargs.setdefault("link_preview", isinstance(kwargs.get("file"), InputMediaWebPage))
 
     edit = message.out and not message.via_bot_id and not message.fwd_from
     match True:
