@@ -267,7 +267,7 @@ presets:
 
   name: Presets
 settings:
-  linux_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> Процесс установки на Linux Device выполняется одной командой:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/radiocycle/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>Примечание: Если у вас отсутствуют права sudo, исключите соответствующую часть команды.</i>"
+  linux_install: "<tg-emoji emoji-id=5471952986970267163>💎</tg-emoji> Процесс установки на Linux Device выполняется одной командой:\n<pre><code class=\"language-shell\">sudo apt update &amp;&amp; sudo apt upgrade -y &amp;&amp; sudo apt install git curl &amp;&amp; curl -LsSf https://astral.sh/uv/install.sh | sh &amp;&amp; export PATH=\"$HOME/.local/bin:$PATH\" &amp;&amp; git clone https://github.com/lowsense-dev/astralix &amp;&amp; cd astralix &amp;&amp; uv venv --python python3 .venv &amp;&amp; uv pip install --python .venv/bin/python -r requirements.txt &amp;&amp; .venv/bin/python -m astralix</code></pre>\n<i>Примечание: Если у вас отсутствуют права sudo, исключите соответствующую часть команды.</i>"
   too_many_args: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Слишком много аргументов</b>"
   blacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Чат {} добавлен в черный список юзербота</b>"
   unblacklisted: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Чат {} удален из черного списка юзербота</b>"
@@ -296,7 +296,7 @@ settings:
   no_alias: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Алиас</b> <code>{}</code> <b>не существует</b>"
   db_cleared: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>База очищена</b>"
   astralix: "{} <b>{}.{}.{}</b> <i>{}</i>\n\n<b><tg-emoji emoji-id=5289608677244811430>📁</tg-emoji> <b>astralix-tl:</b> <i>{}</i>\n\n<tg-emoji emoji-id=5228879218363872764>⌨</tg-emoji> <b>Developers: , <b>"
-  rich_astralix_message: '<h1>astralix <code>{version}</code></h1><p>Твой Telegram. На твоей орбите.</p><p><b>Сборка</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/radiocycle/astralix">GitHub ↗</a></p>'
+  rich_astralix_message: '<h1>astralix <code>{version}</code></h1><p>Твой Telegram. На твоей орбите.</p><p><b>Сборка</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/lowsense-dev/astralix">GitHub ↗</a></p>'
   _cfg_rich_mode: "Показывать astralix как Rich-сообщение."
   _cls_doc: "Управление базовыми настройками юзербота"
   confirm_cleardb: "⚠️ <b>Вы уверены, что хотите сбросить базу данных?</b>"
@@ -399,7 +399,7 @@ test:
   ping_emoji: "Эмодзи которое появляется при не значительном росте пинга."
   _cfg_rich_mode: "Показывать ping как Rich-сообщение."
   back: "↩️ Назад"
-  banner_url: "Картинка для вашего пинга, для примера: https://raw.githubusercontent.com/radiocycle/astralix/main/assets/astralix.png"
+  banner_url: "Картинка для вашего пинга, для примера: https://raw.githubusercontent.com/lowsense-dev/astralix/main/assets/astralix.png"
   logs_caption: "✨ <b>Логи astralix уровня</b> <code>{}</code>\n\n<tg-emoji emoji-id=5228879218363872764>⚪️</tg-emoji> <b>Версия: {}.{}.{}</b>{}"
   debugging_enabled: "<tg-emoji emoji-id=5332533929020761310>✅</tg-emoji> <b>Режим разработчика включен для модуля</b> <code>{0}</code>\n<i>Отправляйся в директорию `debug_modules`, изменяй файл `{0}.py`, и смотри изменения в режиме реального времени</i>"
   debugging_disabled: "<tg-emoji emoji-id=5332533929020761310>✅</tg-emoji> <b>Режим разработчика выключен</b>"
@@ -437,7 +437,7 @@ updater:
   btn_update: "🧭 Обновиться"
   restart_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Ты уверен, что хочешь перезагрузиться?</b>"
   secure_boot_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Ты уверен, что хочешь перезагрузиться в режиме безопасной загрузки?</b>"
-  update_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Ты уверен, что хочешь обновиться?\n\n<a href=\"https://github.com/radiocycle/astralix/commit/{}\">{}</a> ⤑ <a href=\"https://github.com/radiocycle/astralix/commit/{}\">{}</a></b>"
+  update_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Ты уверен, что хочешь обновиться?\n\n<a href=\"https://github.com/lowsense-dev/astralix/commit/{}\">{}</a> ⤑ <a href=\"https://github.com/lowsense-dev/astralix/commit/{}\">{}</a></b>"
   no_update: "<tg-emoji emoji-id=5465496001856950230>🌟</tg-emoji> <b>У тебя последняя версия. Обновиться принудительно?</b>"
   cancel: "🚫 Отмена"
   stop_ub_confirm: "Ваш {} будет остановлен, вы уверены?"
@@ -512,7 +512,7 @@ help:
   help_lib: "<tg-emoji emoji-id=5404553572727660202>❌</tg-emoji> <b>Пакет</b> <code>{}</code> <b>является библиотекой.</b>\n<tg-emoji emoji-id=5404553572727660202>❌</tg-emoji> <b>У библиотек нет описания...</b>"
   developer: "<tg-emoji emoji-id=5287454910059654880>🫶</tg-emoji> Разработчик: {}"
   hidden_shown: "<b>{} модулей скрыто, {} модулей показано:</b>\n{}\n{}"
-  offchats: "<b>astralix Userbot</b> · <a href=\"https://github.com/radiocycle/astralix\">GitHub</a>"
+  offchats: "<b>astralix Userbot</b> · <a href=\"https://github.com/lowsense-dev/astralix\">GitHub</a>"
   _cls_doc: "Показывает помощь по модулям"
   partial_load: "<tg-emoji emoji-id=5355133243773435190>☝️</tg-emoji> <b>Юзербот еще не загрузился полностью, поэтому показаны не все модули</b>"
   not_exact: "<tg-emoji emoji-id=5355133243773435190>☝️</tg-emoji> <b>Точного совпадения не нашлось, поэтому было выбрано наиболее подходящее</b>"
@@ -626,7 +626,7 @@ loader:
   clearmodules: "🗑 Выгрузить модули"
   cancel: "🚫 Отмена"
   overwrite_module: "<tg-emoji emoji-id=5287372146039861774>❌</tg-emoji> <b>Этот модуль попытался перезаписать встроенный (</b><code>{}</code><b>)</b>\n\n<tg-emoji emoji-id=5472146462362048818>💡</tg-emoji><i> Это не ошибка, а мера безопасности, требуемая для предотвращения замены встроенных модулей всяким хламом. Не сообщайте о ней в support чате</i>"
-  scam_module: "<b>Module {name} was blocked as unsafe.</b> Report it in <a href=\"https://github.com/radiocycle/astralix\">GitHub</a>."
+  scam_module: "<b>Module {name} was blocked as unsafe.</b> Report it in <a href=\"https://github.com/lowsense-dev/astralix\">GitHub</a>."
   overwrite_command: "<tg-emoji emoji-id=5287372146039861774>❌</tg-emoji> <b>Этот модуль попытался перезаписать встроенную команду (</b><code>{}</code><b>)</b>\n\n<tg-emoji emoji-id=5472146462362048818>💡</tg-emoji><i> Это не ошибка, а мера безопасности, требуемая для предотвращения замены команд встроенных модулей всяким хламом. Не сообщайте о ней в support чате</i>"
   unload_core: "<tg-emoji emoji-id=5287372146039861774>❌</tg-emoji> <b>Ты не можешь выгрузить встроенный модуль</b> <code>{}</code><b></b>\n\n<tg-emoji emoji-id=5472146462362048818>💡</tg-emoji><i> Это не ошибка, а мера безопасности, требуемая для предотвращения замены встроенных модулей всяким хламом. Не сообщайте о ней в support чате</i>"
   cannot_unload_lib: "<tg-emoji emoji-id=5287372146039861774>❌</tg-emoji> <b>Ты не можешь выгрузить библиотеку</b>"
@@ -713,7 +713,7 @@ translate:
 
   name: Translator
 quickstart:
-  base: "<b>{} — astralix Userbot</b>\n\n.help · .help &lt;module&gt;\n.dlmod &lt;URL&gt; · .loadmod · .unloadmod\n\n<a href=\"https://github.com/radiocycle/astralix\">GitHub</a>"
+  base: "<b>{} — astralix Userbot</b>\n\n.help · .help &lt;module&gt;\n.dlmod &lt;URL&gt; · .loadmod · .unloadmod\n\n<a href=\"https://github.com/lowsense-dev/astralix\">GitHub</a>"
   language_saved: "🇷🇺 Язык сохранен!"
   language: "🇷🇺 Русский"
 

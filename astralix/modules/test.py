@@ -12,7 +12,7 @@
 
 # ©️ radiocycle, 2026
 # This file is a part of astralix Userbot
-# 🌐 https://github.com/radiocycle/astralix
+# 🌐 https://github.com/lowsense-dev/astralix
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -124,7 +124,7 @@ class TestMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/radiocycle/astralix/main/assets/ping-banner.png",
+                "https://raw.githubusercontent.com/lowsense-dev/astralix/main/assets/ping-banner.png",
                 lambda: self.strings["banner_url"],
                 validator=loader.validators.RandomLink(),
             ),
@@ -369,7 +369,7 @@ class TestMod(loader.Module):
             *main.__version__,
             (
                 " <a"
-                f' href="https://github.com/radiocycle/astralix/commit/{ghash}">@{ghash[:8]}</a>'
+                f' href="https://github.com/lowsense-dev/astralix/commit/{ghash}">@{ghash[:8]}</a>'
                 if ghash
                 else ""
             ),

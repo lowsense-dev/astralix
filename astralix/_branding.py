@@ -1,6 +1,6 @@
 # ©️ radiocycle, 2026
 # This file is a part of astralix Userbot
-# 🌐 https://github.com/radiocycle/astralix
+# 🌐 https://github.com/lowsense-dev/astralix
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -8,7 +8,7 @@
 from pathlib import Path
 
 APP_NAME = "astralix Userbot"
-REPO_URL = "https://github.com/radiocycle/astralix"
+REPO_URL = "https://github.com/lowsense-dev/astralix"
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "astralix.png"
 BOT_AVATAR_PATH = LOGO_PATH.with_name("astralix-bot.png")
 CHAT_AVATAR_PATH = LOGO_PATH.with_name("astralix-chat.png")

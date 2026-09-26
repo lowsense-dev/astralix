@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ©️ radiocycle, 2026
 # This file is a part of astralix Userbot
-# 🌐 https://github.com/radiocycle/astralix
+# 🌐 https://github.com/lowsense-dev/astralix
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -9,7 +9,7 @@ set -euo pipefail
 
 APP_NAME="astralix"
 MODULE_NAME="astralix"
-REPO_URL="${ASTRALIX_REPO_URL:-https://github.com/radiocycle/astralix.git}"
+REPO_URL="${ASTRALIX_REPO_URL:-https://github.com/lowsense-dev/astralix.git}"
 VENV_DIR="${ASTRALIX_VENV_DIR:-.venv}"
 LOG_FILE="astralix-install.log"
 

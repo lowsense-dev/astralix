@@ -1,5 +1,5 @@
 /* © radiocycle, 2026 · astralix Userbot · GNU AGPLv3
-   https://github.com/radiocycle/astralix */
+   https://github.com/lowsense-dev/astralix */
 "use strict";
 (() => {
   const $ = (id) => document.getElementById(id);

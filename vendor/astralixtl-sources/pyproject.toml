@@ -9,7 +9,7 @@ description = "This library is built for the astralix Userbot and is based on Te
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
 requires-python = ">=3.10"
-maintainers = [{ name = "radiocycle" }]
+maintainers = [{ name = "lowsense-dev" }]
 authors = [
     { name = "Codrago", email = "codrago@xyecoc.com" },
 ]
@@ -40,8 +40,8 @@ cryptg = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/radiocycle/astralix-tl"
-Source = "https://github.com/radiocycle/astralix-tl"
+Homepage = "https://github.com/lowsense-dev/astralix-tl"
+Source = "https://github.com/lowsense-dev/astralix-tl"
 Documentation = "https://docs.telethon.dev"
 Reference = "https://tl.telethon.dev"
 

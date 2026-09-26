@@ -12,7 +12,7 @@
 
 # ©️ radiocycle, 2026
 # This file is a part of astralix Userbot
-# 🌐 https://github.com/radiocycle/astralix
+# 🌐 https://github.com/lowsense-dev/astralix
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -1107,7 +1107,7 @@ class Astralix:
                     str(LOGO_PATH),
                     caption=(
                         "<b>astralix {}</b> · started\n\n"
-                        'Build  <a href="https://github.com/radiocycle/astralix/commit/{}">{}</a>\n'
+                        'Build  <a href="https://github.com/lowsense-dev/astralix/commit/{}">{}</a>\n'
                         "Status  {}\nPrefix  <code>{}</code>"
                     ).format(
                         ".".join(list(map(str, list(__version__)))),

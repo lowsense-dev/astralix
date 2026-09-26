@@ -389,10 +389,10 @@
 - Update to Hikka-TL 2.0.7
 - Allow double-restart
 - Personal messages scam modules protection
-- https://github.com/radiocycle/astralix/issues/115
-- https://github.com/radiocycle/astralix/issues/114
-- https://github.com/radiocycle/astralix/issues/119
-- https://github.com/radiocycle/astralix/issues/120
+- https://github.com/lowsense-dev/astralix/issues/115
+- https://github.com/lowsense-dev/astralix/issues/114
+- https://github.com/lowsense-dev/astralix/issues/119
+- https://github.com/lowsense-dev/astralix/issues/120
 - Other changes
 
 ## 🌑 astralix 1.6.3

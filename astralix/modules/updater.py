@@ -12,7 +12,7 @@
 
 # ©️ radiocycle, 2026
 # This file is a part of astralix Userbot
-# 🌐 https://github.com/radiocycle/astralix
+# 🌐 https://github.com/lowsense-dev/astralix
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -73,7 +73,7 @@ class UpdaterMod(loader.Module):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "GIT_ORIGIN_URL",
-                "https://github.com/radiocycle/astralix",
+                "https://github.com/lowsense-dev/astralix",
                 lambda: self.strings["origin_cfg_doc"],
                 validator=loader.validators.Link(),
             ),
@@ -219,7 +219,7 @@ class UpdaterMod(loader.Module):
                 try:
                     async with aiohttp.ClientSession() as session:
                         r = await session.get(
-                            url=f"https://api.github.com/repos/radiocycle/astralix/contents/astralix/version.py?ref={version.branch}",
+                            url=f"https://api.github.com/repos/lowsense-dev/astralix/contents/astralix/version.py?ref={version.branch}",
                             headers={"Accept": "application/vnd.github.v3.raw"},
                         )
                         text = await r.text()
@@ -243,7 +243,7 @@ class UpdaterMod(loader.Module):
                     str(LOGO_PATH),
                     caption=self.strings["update_required"].format(
                         current[:6],
-                        '<a href="https://github.com/radiocycle/astralix/compare/{}...{}">{}</a>'.format(
+                        '<a href="https://github.com/lowsense-dev/astralix/compare/{}...{}">{}</a>'.format(
                             current[:12],
                             self._pending[:12],
                             self._pending[:6],
@@ -267,7 +267,7 @@ class UpdaterMod(loader.Module):
                     caption=self.strings["autoupdate_notifier"].format(
                         self._pending[:6],
                         changelog,
-                        '<a href="https://github.com/radiocycle/astralix/compare/{}...{}">{}</a>'.format(
+                        '<a href="https://github.com/lowsense-dev/astralix/compare/{}...{}">{}</a>'.format(
                             current[:12],
                             self._pending[:12],
                             "🔎 diff",
