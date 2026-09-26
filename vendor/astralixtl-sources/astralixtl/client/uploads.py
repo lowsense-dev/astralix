@@ -8,6 +8,7 @@ import pathlib
 import re
 import typing
 from io import BytesIO
+from urllib.parse import unquote, urlsplit
 
 from ..crypto import AES
 
@@ -117,6 +118,11 @@ async def _is_session_file(file: typing.Any) -> bool:
       so the stream is not consumed.
     * Anything else — returns ``False`` (conservative pass-through).
     """
+    # External media is fetched by Telegram, never opened on the local machine.
+    # Keep the filename guard for protected URLs, including query strings.
+    if isinstance(file, str) and re.match(r"(?i)^https?://", file):
+        return _is_sensitive_name(unquote(urlsplit(file).path))
+
     # ── 1. Extension / filename check ──────────────────────────────────────
     name: str = ""
     if isinstance(file, str):
@@ -136,6 +142,8 @@ async def _is_session_file(file: typing.Any) -> bool:
         data = bytes(file[:_SESSION_PEEK_BYTES])
 
     elif isinstance(file, (str, pathlib.Path)):
+        if isinstance(file, str) and not os.path.isfile(file) and utils.resolve_bot_file_id(file):
+            return False
         def peek():
             with open(file, "rb") as stream:
                 return stream.read(_SESSION_PEEK_BYTES)
@@ -1113,7 +1121,7 @@ class UploadMethods:
                 file_size=file_size,
                 progress_callback=progress_callback,
             )
-        elif re.match("https?://", file):
+        elif re.match("(?i)https?://", file):
             if as_image:
                 media = types.InputMediaPhotoExternal(
                     file, ttl_seconds=ttl, spoiler=spoiler
