@@ -457,7 +457,11 @@ def parse_arguments() -> dict:
         "--no-web",
         dest="no_web",
         action="store_true",
-        help="Use console authentication instead of the local browser login",
+        help="Use console authentication instead of browser login",
+    )
+    parser.add_argument(
+        "--web-mode", choices=("tunnel", "local"),
+        help="Choose browser login transport (otherwise ask on first login)",
     )
     parser.add_argument(
         "--web-port", type=int, default=8765,
@@ -819,7 +823,23 @@ class Astralix:
             return True
 
     async def _web_initial_setup(self) -> bool:
+        from aiohttp import ClientError
         from ._web_login import WebLogin
+
+        mode = self.arguments.web_mode or get_config_key("web_login_mode")
+        if mode not in {"tunnel", "local"}:
+            print("Choose how to log in / Выбери способ входа:")
+            print("  1. astralix tunnel — https://tunnel.astralix.cc")
+            print("  2. Local browser / Локально — 127.0.0.1")
+            print("CLI: restart with --no-web. Change later with --web-mode tunnel|local.")
+            while mode not in {"tunnel", "local"}:
+                try:
+                    choice = (await asyncio.to_thread(input, "[1/2]: ")).strip()
+                except EOFError:
+                    print("No interactive input. Pass --web-mode tunnel, --web-mode local or --no-web.")
+                    return False
+                mode = {"1": "tunnel", "2": "local"}.get(choice)
+        save_config_key("web_login_mode", mode)
 
         def make_client(api_id, api_hash):
             return CustomTelegramClient(
@@ -833,14 +853,22 @@ class Astralix:
             )
 
         credentials = (self.api_token.ID, self.api_token.HASH) if self.api_token else None
-        login = WebLogin(make_client, credentials, register_secret)
+        if mode == "tunnel":
+            from ._tunnel_login import TunnelLogin
+            login = TunnelLogin(make_client, credentials, register_secret)
+        else:
+            login = WebLogin(make_client, credentials, register_secret)
         try:
             link = await login.start(self.arguments.web_port)
             print_banner("banner.txt")
             print(f"Open this private link to log in (valid for 15 minutes):\n{link}")
-            print(f"Remote server: ssh -N -L {login.port}:127.0.0.1:{login.port} user@server")
+            if mode == "local":
+                print(f"Remote server: ssh -N -L {login.port}:127.0.0.1:{login.port} user@server")
             print("Console login: restart with --no-web. Ctrl+C to cancel.")
-            await asyncio.wait_for(login.done.wait(), timeout=900)
+            if mode == "tunnel":
+                await login.wait_completed()
+            else:
+                await asyncio.wait_for(login.done.wait(), timeout=900)
             # Let the browser display completion before closing the temporary server.
             await asyncio.sleep(2)
             await login.stop_server()
@@ -851,6 +879,9 @@ class Astralix:
             return True
         except asyncio.TimeoutError:
             print("Web login expired. Restart astralix to get a new link.")
+            return False
+        except (ClientError, ConnectionError, OSError):
+            print("Web login connection failed. Retry or choose --web-mode local / --no-web.")
             return False
         finally:
             await login.close()

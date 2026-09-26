@@ -25,7 +25,7 @@ uv pip install --python .venv/bin/python -r optional_requirements.txt
 
 Explicit module installation and explicit application updates may install dependencies through uv. Third-party modules execute with the same privileges as the userbot; review their source before loading them.
 
-Login uses the RU/EN web interface by default. Pass `--no-web` for interactive console login.
+On first login, choose the RU/EN web interface through `tunnel.astralix.cc` or locally on `127.0.0.1`. The choice is saved. Use `--web-mode tunnel` or `--web-mode local` to change it, or `--no-web` for interactive console login. Tunnel links expire after 15 minutes and allow one browser connection; restart login for a new link if disconnected.
 
 Existing Heroku data is not automatically renamed: keep its backup and use a separate data directory for the rebranded application until migration is reviewed.
 

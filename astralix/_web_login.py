@@ -51,7 +51,7 @@ class WebLogin:
         self.rpc_attempts = deque(maxlen=10)
         self.blocked_until = 0
         self.app = web.Application(client_max_size=4096, middlewares=[self.guard])
-        for path in ("/", "/app.css", "/app.js"):
+        for path in ("/", "/app.css", "/app.js", "/tunnel.js"):
             self.app.router.add_get(path, self.asset)
         self.app.router.add_post("/api/unlock", self.unlock)
         self.app.router.add_get("/api/state", self.state)
@@ -131,7 +131,7 @@ class WebLogin:
         return response
 
     async def asset(self, request):
-        name, mime = {"/": ("index.html", "text/html"), "/app.css": ("app.css", "text/css"), "/app.js": ("app.js", "application/javascript")}[request.path]
+        name, mime = {"/": ("index.html", "text/html"), "/app.css": ("app.css", "text/css"), "/app.js": ("app.js", "application/javascript"), "/tunnel.js": ("tunnel.js", "application/javascript")}[request.path]
         return web.Response(body=(ASSETS / name).read_bytes(), content_type=mime)
 
     async def body(self, request):
@@ -170,6 +170,13 @@ class WebLogin:
 
     async def step(self, request):
         data = await self.body(request)
+        return await self.submit(data)
+
+    async def submit(self, data):
+        if not isinstance(data, dict) or any(
+            not isinstance(v, str) or len(v) > 1024 for v in data.values()
+        ):
+            raise web.HTTPBadRequest()
         async with self.lock:
             if time.monotonic() >= self.expires:
                 raise web.HTTPGone()

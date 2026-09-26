@@ -124,6 +124,7 @@ elif __package__ != "astralix":
 else:
     try:
         import astralixtl
+        import cryptography  # Required by the encrypted login transport.
         ver_ = tuple(
             int(match.group()) if (match := re.match(r"\d+", part)) else 0
             for part in astralixtl.__version__.split(".")

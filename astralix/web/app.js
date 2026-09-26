@@ -19,7 +19,7 @@
       password: ["Ещё один шаг", "У тебя включена двухэтапная аутентификация. Введи облачный пароль, чтобы завершить вход."],
       done: ["Ты на своей орбите", "Аккаунт подключён. astralix завершает настройку и запускает userbot."],
       locked: ["Нужна ссылка для входа", "Открой приватную ссылку из терминала, в котором запущен astralix. Если она истекла — перезапусти приложение."],
-      errors: {code: "Неверный код. Проверь сообщение от Telegram и попробуй ещё раз.", password: "Неверный облачный пароль.", phone: "Telegram не принял этот номер. Проверь код страны и цифры.", api: "Telegram не принял API ID/hash. Проверь данные приложения.", expired: "Код истёк. Запроси новый код.", flood: "Слишком много попыток. Подожди перед повтором.", network: "Нет ответа от Telegram. Проверь соединение и попробуй снова.", internal: "Не удалось завершить шаг. Попробуй снова или используй консольный вход с --no-web.", bad: "Проверь формат введённых данных.", conflict: "Этот шаг уже изменился. Обнови страницу.", unavailable: "Не удалось связаться с astralix. Проверь, что он запущен и SSH-туннель открыт."},
+      errors: {code: "Неверный код. Проверь сообщение от Telegram и попробуй ещё раз.", password: "Неверный облачный пароль.", phone: "Telegram не принял этот номер. Проверь код страны и цифры.", api: "Telegram не принял API ID/hash. Проверь данные приложения.", expired: "Код истёк. Запроси новый код.", flood: "Слишком много попыток. Подожди перед повтором.", network: "Нет ответа от Telegram. Проверь соединение и попробуй снова.", internal: "Не удалось завершить шаг. Попробуй снова или используй консольный вход с --no-web.", bad: "Проверь формат введённых данных.", conflict: "Этот шаг уже изменился. Обнови страницу.", unavailable: "Не удалось связаться с astralix. Проверь соединение. Если туннель закрылся, запусти вход заново и открой новую ссылку."},
     },
     en: {
       eyebrow: "YOUR OWN LITTLE UNIVERSE", hero1: "Your Telegram.", hero2: "In your own orbit.",
@@ -36,11 +36,12 @@
       password: ["One more step", "Two-step verification is enabled. Enter your cloud password to finish signing in."],
       done: ["You're in your own orbit", "Account connected. astralix is finishing setup and starting your userbot."],
       locked: ["A private link is needed", "Open the private link from the terminal running astralix. If it has expired, restart the application."],
-      errors: {code: "Invalid code. Check the Telegram message and try again.", password: "Incorrect cloud password.", phone: "Telegram rejected this number. Check the country code and digits.", api: "Telegram rejected the API ID/hash. Check your app credentials.", expired: "The code expired. Request a new one.", flood: "Too many attempts. Please wait before trying again.", network: "Telegram did not respond. Check your connection and retry.", internal: "Couldn't complete this step. Retry or use console login with --no-web.", bad: "Check the format of the details you entered.", conflict: "This step has already changed. Refresh the page.", unavailable: "Cannot reach astralix. Check that it is running and your SSH tunnel is open."},
+      errors: {code: "Invalid code. Check the Telegram message and try again.", password: "Incorrect cloud password.", phone: "Telegram rejected this number. Check the country code and digits.", api: "Telegram rejected the API ID/hash. Check your app credentials.", expired: "The code expired. Request a new one.", flood: "Too many attempts. Please wait before trying again.", network: "Telegram did not respond. Check your connection and retry.", internal: "Couldn't complete this step. Retry or use console login with --no-web.", bad: "Check the format of the details you entered.", conflict: "This step has already changed. Refresh the page.", unavailable: "Cannot reach astralix. Check the connection. If the tunnel closed, restart login and open the new link."},
     },
   };
   let locale = navigator.language.startsWith("ru") ? "ru" : "en";
   let stage = "loading", csrf = "", busy = false, errorKey = "", retrySeconds = 0;
+  let tunnel = null;
   const stages = ["api", "phone", "code", "password"];
   function render(focus = false) {
     const t = copy[locale];
@@ -69,6 +70,7 @@
     if (focus && index >= 0) $(`${stage}-fields`).querySelector("input").focus();
   }
   async function api(path, data) {
+    if (tunnel) return tunnel.request(path, data);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 55000);
     try {
@@ -115,17 +117,21 @@
     }
   });
   async function init() {
-    let key = new URLSearchParams(location.hash.slice(1)).get("key");
+    const params = new URLSearchParams(location.hash.slice(1));
+    let key = params.get("key");
     history.replaceState(null, "", location.pathname);
     render();
     try {
-      if (key) await api("/api/unlock", {key});
+      if (params.has("id") || location.hostname === "tunnel.astralix.cc") {
+        tunnel = await window.AstralixTunnel.connect(params);
+        params.delete("secret"); params.delete("ticket");
+      } else if (key) await api("/api/unlock", {key});
       key = null;
       const state = await api("/api/state");
       csrf = state.csrf;
       stage = stages.includes(state.stage) || state.stage === "done" ? state.stage : "locked";
     } catch (error) { handleError(error); if (stage === "loading") stage = "locked"; }
-    finally { key = null; render(true); }
+    finally { key = null; params.delete("secret"); params.delete("ticket"); params.delete("key"); render(true); }
   }
   init();
 })();
