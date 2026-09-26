@@ -10,6 +10,8 @@ from pathlib import Path
 APP_NAME = "astralix Userbot"
 REPO_URL = "https://github.com/radiocycle/astralix"
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "astralix.png"
+BOT_AVATAR_PATH = LOGO_PATH.with_name("astralix-bot.png")
+CHAT_AVATAR_PATH = LOGO_PATH.with_name("astralix-chat.png")
 
 
 WORDMARK = (

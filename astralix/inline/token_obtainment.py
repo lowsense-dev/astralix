@@ -134,9 +134,9 @@ class TokenObtainment(InlineUnit):
 
             try:
                 await fw_protect()
-                from .. import main
+                from .._branding import BOT_AVATAR_PATH
 
-                m = await conv.send_file(main.BASE_PATH / "assets" / "astralix.png")
+                m = await conv.send_file(BOT_AVATAR_PATH)
                 r = await conv.get_response()
 
                 logger.debug(">> <Photo>")

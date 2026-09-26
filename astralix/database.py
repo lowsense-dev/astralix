@@ -16,7 +16,7 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from ._branding import LOGO_PATH
+from ._branding import CHAT_AVATAR_PATH
 import asyncio
 import collections
 import copy
@@ -175,7 +175,7 @@ class Database(dict):
                 description="🪐 Content related to astralix will be here",
                 silent=True,
                 invite_bot=True,
-                avatar=str(LOGO_PATH),
+                avatar=str(CHAT_AVATAR_PATH),
                 forum=True,
                 hide_general=True,
                 _folder="astralix",
