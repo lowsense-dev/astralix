@@ -24,12 +24,12 @@ import re
 import shlex
 import time
 import typing
-from collections.abc import Callable
 import signal
 
 import astralixtl
 
 from .. import loader, utils
+from .._terminal import ShellSession, SessionBusy
 
 logger = logging.getLogger(__name__)
 
@@ -39,29 +39,6 @@ BANNER_BAD = "https://x0.at/4AAH.jpg"
 
 def hash_msg(message):
     return f"{str(utils.get_chat_id(message))}/{str(message.id)}"
-
-
-async def read_stream(func: Callable, stream, delay: float):
-    data = bytearray()
-    dirty = False
-    last_update = time.monotonic()
-    interval = max(float(delay), 0.05)
-    while True:
-        try:
-            chunk = await asyncio.wait_for(stream.read(4096), timeout=interval)
-        except asyncio.TimeoutError:
-            chunk = None
-        if chunk == b"":
-            if dirty:
-                await func(data.decode(errors="replace"))
-            return
-        if chunk:
-            data.extend(chunk)
-            dirty = True
-        if dirty and time.monotonic() - last_update >= interval:
-            await func(data.decode(errors="replace"))
-            dirty = False
-            last_update = time.monotonic()
 
 
 def sudo_stdin_command(command, shell="/bin/sh"):
@@ -296,14 +273,15 @@ class InlineMessageEditor:
             self.waiting_password = True
 
     def get_reply_markup(self):
+        markup = self.reply_markup(self) if callable(self.reply_markup) else self.reply_markup or []
         if self.waiting_password and self.rc is None:
             return [[{
                 "text": self.strings["btn_input_password"],
                 "input": self.strings["sudo_password_input"],
                 "handler": self.input_password,
                 "args": (self._password_token,),
-            }]]
-        return self.reply_markup(self) if callable(self.reply_markup) else self.reply_markup or []
+            }]] + markup
+        return markup
 
     async def input_password(self, call, query: str, token: str):
         if getattr(call.from_user, "id", None) != self.owner_id:
@@ -547,6 +525,80 @@ class TerminalMod(loader.Module):
         self.activecmds = {}
         self._inline_pending: dict[str, str] = {}
         self._inline_sessions: dict[str, InlineMessageEditor] = {}
+        self._shell_sessions = {}
+        self._shell_jobs = {}
+
+    async def on_unload(self):
+        jobs = list(self._shell_jobs.values())
+        for task in jobs:
+            task.cancel()
+        await asyncio.gather(*jobs, return_exceptions=True)
+        await asyncio.gather(*(session.close() for session in self._shell_sessions.values()))
+        self._shell_sessions.clear()
+        self._shell_jobs.clear()
+
+    def _reset_markup(self, editor):
+        return [[{
+            "text": self.strings["btn_reset_session"],
+            "callback": self.inline__reset_session,
+            "args": (editor,),
+        }]]
+
+    async def inline__reset_session(self, call, editor):
+        if getattr(call.from_user, "id", None) != self.tg_id:
+            return
+        key = editor.session_key
+        session = self._shell_sessions.get(key)
+        # Old cards must not reset a replacement session in the same chat.
+        if session is not getattr(editor, "shell_session", None):
+            await call.answer(utils.remove_html(self.strings["session_reset"]), show_alert=True)
+            return
+        self._shell_sessions.pop(key, None)
+        task = self._shell_jobs.pop(key, None)
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        if session:
+            await session.close()
+        editor.reset("")
+        editor.rc = 0
+        await editor.form.edit(self.strings["session_reset"], reply_markup=editor.get_reply_markup())
+        await call.answer()
+
+    def _start_command(self, key, cmd, editor):
+        if key in self._shell_jobs and not self._shell_jobs[key].done():
+            raise SessionBusy()
+        if key not in self._shell_sessions:
+            if len(self._shell_sessions) >= 32:
+                raise RuntimeError(self.strings["session_limit"])
+            self._shell_sessions[key] = ShellSession(
+                os.environ.get("SHELL") or "/bin/sh", utils.get_base_dir(),
+            )
+        session = self._shell_sessions[key]
+        editor.session_key, editor.shell_session = key, session
+        task = asyncio.create_task(self._execute_shell(key, session, cmd, editor))
+        self._shell_jobs[key] = task
+        return task
+
+    async def _execute_shell(self, key, session, cmd, editor):
+        utils.ensure_child_watcher()
+        try:
+            rc = await session.run(
+                sudo_stdin_command(cmd, session.shell), editor,
+                self.config["FLOOD_WAIT_PROTECT"],
+            )
+        except asyncio.CancelledError:
+            await editor.cmd_ended(-signal.SIGKILL)
+            raise
+        except Exception as error:
+            await editor.update_stderr(str(error))
+            await editor.cmd_ended(1)
+        else:
+            await editor.cmd_ended(rc)
+        finally:
+            if self._shell_jobs.get(key) is asyncio.current_task():
+                self._shell_jobs.pop(key, None)
 
     def _build_inline_exec_markup(
         self,
@@ -569,8 +621,9 @@ class TerminalMod(loader.Module):
         editor: InlineMessageEditor,
         session_uid: str,
     ) -> list[list[dict[str, typing.Any]]]:
+        markup = self._reset_markup(editor)
         if editor.rc is None:
-            return []
+            return markup
 
         return [
             [
@@ -581,7 +634,7 @@ class TerminalMod(loader.Module):
                     "args": (session_uid,),
                 }
             ]
-        ]
+        ] + markup
 
     def _register_inline_session(self, session_uid: str, inline_message_id: str):
         self.inline._units[session_uid] = {
@@ -594,6 +647,7 @@ class TerminalMod(loader.Module):
             "top_msg_id": None,
             "uid": session_uid,
             "inline_message_id": inline_message_id,
+            "force_me": True,
         }
 
     @loader.command(alias="exec")
@@ -691,6 +745,8 @@ class TerminalMod(loader.Module):
     async def exec_callback(self, call):
         if not call.data.startswith("terminal/exec/"):
             return
+        if getattr(call.from_user, "id", None) != self.tg_id:
+            return
 
         uid = call.data.split("/")[2]
         cmd = self._inline_pending.pop(uid, None)
@@ -730,19 +786,22 @@ class TerminalMod(loader.Module):
         )
         self._inline_sessions[uid] = editor
 
-        asyncio.ensure_future(self._run_inline(cmd, editor))
+        editor.session_key = ("inline", uid)
+        await self._run_inline(cmd, editor)
 
     async def inline__continue_input(self, call, query: str, session_uid: str):
+        if getattr(call.from_user, "id", None) != self.tg_id:
+            return
         editor = self._inline_sessions.get(session_uid)
 
-        if not editor:
+        if not editor or editor.rc is None:
             return
 
         query = query.strip()
         if not query:
             return
 
-        cmd = f"{editor.command} {query}".strip()
+        cmd = query
 
         if self._is_dangerous(cmd):
             await editor.form.edit(
@@ -753,47 +812,18 @@ class TerminalMod(loader.Module):
 
         editor.reset(cmd)
         await editor.form.edit(self.strings["exec_running"])
-        asyncio.ensure_future(self._run_inline(cmd, editor))
+        await self._run_inline(cmd, editor)
 
     async def _run_inline(self, cmd: str, editor: InlineMessageEditor):
-        shell = os.environ.get("SHELL") or "/bin/sh"
-        utils.ensure_child_watcher()
-
         try:
-            sproc = await asyncio.create_subprocess_exec(
-                shell,
-                "-c",
-                sudo_stdin_command(cmd, shell),
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=utils.get_base_dir(),
-                preexec_fn=os.setsid,
+            self._start_command(editor.session_key, cmd, editor)
+        except (SessionBusy, RuntimeError) as error:
+            editor.rc = 1
+            await editor.form.edit(
+                self.strings["session_busy"] if isinstance(error, SessionBusy)
+                else utils.escape_html(str(error)),
+                reply_markup=editor.get_reply_markup(),
             )
-        except Exception as e:
-            with contextlib.suppress(Exception):
-                await editor.form.edit(
-                    self.strings["exec_error"].format(utils.escape_html(str(e)))
-                )
-            return
-
-        editor.update_process(sproc)
-        await editor.redraw()
-
-        await asyncio.gather(
-            read_stream(
-                editor.update_stdout,
-                sproc.stdout,
-                self.config["FLOOD_WAIT_PROTECT"],
-            ),
-            read_stream(
-                editor.update_stderr,
-                sproc.stderr,
-                self.config["FLOOD_WAIT_PROTECT"],
-            ),
-        )
-
-        await editor.cmd_ended(await sproc.wait())
 
     async def run_command(
         self,
@@ -801,59 +831,48 @@ class TerminalMod(loader.Module):
         cmd: str,
         editor: MessageEditor | None = None,
     ):
-
+        if not cmd.strip():
+            await utils.answer(message, self.strings["inline_hint_desc"])
+            return
         if self._is_dangerous(cmd):
             await utils.answer(
                 message,
                 self.strings["dangerous_command"].format(utils.escape_html(cmd)),
             )
             return
-
-        shell = os.environ.get("SHELL") or "/bin/sh"
-        utils.ensure_child_watcher()
-
-        try:
-            sproc = await asyncio.create_subprocess_exec(
-                shell,
-                "-c",
-                sudo_stdin_command(cmd, shell),
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=utils.get_base_dir(),
-                preexec_fn=os.setsid,
-            )
-        except Exception as e:
-            await utils.answer(
-                message,
-                self.strings["exec_error"].format(utils.escape_html(str(e))),
-            )
+        key = ("chat", utils.get_chat_id(message))
+        if key in self._shell_jobs and not self._shell_jobs[key].done():
+            await utils.answer(message, self.strings["session_busy"])
             return
-
         if editor is None:
-            editor = SudoMessageEditor(message, cmd, self.config, self.strings, message)
-
-        editor.update_process(sproc)
-
-        self.activecmds[hash_msg(message)] = sproc
-
-        await editor.redraw()
-
-        await asyncio.gather(
-            read_stream(
-                editor.update_stdout,
-                sproc.stdout,
-                self.config["FLOOD_WAIT_PROTECT"],
-            ),
-            read_stream(
-                editor.update_stderr,
-                sproc.stderr,
-                self.config["FLOOD_WAIT_PROTECT"],
-            ),
-        )
-
-        await editor.cmd_ended(await sproc.wait())
-        del self.activecmds[hash_msg(message)]
+            editor = InlineMessageEditor(
+                None, cmd, self.strings, self.config,
+                reply_markup=self._reset_markup,
+            )
+            editor.owner_id = self.tg_id
+            editor.session_key = key
+            form = await self.inline.form(
+                message=message, text=editor.render_text(),
+                reply_markup=[], force_me=True,
+                on_unload=editor.on_unload,
+            )
+            if not form:
+                return
+            editor.form = form
+            self._inline_sessions[form.unit_id] = editor
+        try:
+            task = self._start_command(key, cmd, editor)
+        except (SessionBusy, RuntimeError) as error:
+            text = self.strings["session_busy"] if isinstance(error, SessionBusy) else str(error)
+            await editor.update_stderr(text)
+            await editor.cmd_ended(1)
+            return
+        # Keep the existing reply-to-kill behaviour for plain command messages.
+        self.activecmds[hash_msg(message)] = editor
+        try:
+            await task
+        finally:
+            self.activecmds.pop(hash_msg(message), None)
 
     def _find_inline_editor_by_message(
         self,
@@ -897,7 +916,8 @@ class TerminalMod(loader.Module):
             await utils.answer(message, self.strings["no_cmd"])
             return
 
-        process = self.activecmds.get(hash_msg(reply))
+        active_editor = self.activecmds.get(hash_msg(reply))
+        process = active_editor.process if active_editor else None
         inline_editor = None
 
         if process is None:
