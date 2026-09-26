@@ -685,8 +685,6 @@ translations:
   check_url: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Du musst einen Link angeben, der ein Übersetzungspaket enthält</b>"
   too_long: "<tg-emoji emoji-id=5341492148468465410>📁</tg-emoji> <b>Die Ausgabe des Befehls ist zu lang, daher wurde sie in einer Datei gesendet.</b>"
   choose_language: "<tg-emoji emoji-id=5454219968948229067>🗽</tg-emoji> <b>Wähle eine Sprache</b>"
-  off_langs: "🏴‍☠️ Offizielle Sprachpakete"
-  meme_langs: "🏴‍☠️ Meme Sprachpakete"
   not_official: "<tg-emoji emoji-id=5312383351217201533>⚠️</tg-emoji> <b>Diese Sprache wird nicht offiziell unterstützt</b>"
   requested_join: "💫 <b>Das Modul</b> <code>{}</code> <b>hat um den Beitritt zum Kanal <a href='https://t.me/{}'>{}</a> gebeten</b>\n\n<b>❓ Grund:</b> <i>{}</i>"
   fw_error: "<tg-emoji emoji-id=5877458226823302157>🕒</tg-emoji> <b>Befehl</b> <code>{}</code> <b>hat FloodWait {} im Methode</b> <code>{}</code> ausgelöst"
