@@ -455,6 +455,9 @@ class SecurityManager:
             and not message.is_group
             and message.edit_date
         ):
+            # An outgoing channel post can later be edited by another admin.
+            # Resolve the latest editor; never fall back to the original `out`.
+            is_channel = True
             async for event in self._client.iter_admin_log(
                 utils.get_chat_id(message),
                 limit=10,
@@ -462,7 +465,9 @@ class SecurityManager:
             ):
                 if event.action.prev_message.id == message.id:
                     user_id = event.user_id
-                    is_channel = True
+                    break
+            else:
+                return False
 
         if (
             user_id == self._client.tg_id
