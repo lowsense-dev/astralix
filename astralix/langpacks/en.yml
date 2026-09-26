@@ -338,7 +338,7 @@ settings:
   no_alias: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Alias</b> <code>{}</code> <b>does not exist</b>"
   db_cleared: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>Database cleared</b>"
   astralix: "{} <b>{}.{}.{}</b> <i>{}</i>\n\n<b><tg-emoji emoji-id=5289608677244811430>📁</tg-emoji> <b>astralix-tl:</b> <i>{}</i>\n\n<tg-emoji emoji-id=5228879218363872764>⌨</tg-emoji> <b>Developers: , </b>"
-  rich_astralix_message: '<h1>astralix <code>{version}</code></h1><p>Your Telegram. In your own orbit.</p><p><b>Build</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/lowsense-dev/astralix">GitHub ↗</a></p>'
+  rich_astralix_message: '<figure><img src="{banner_url}"/></figure><h1>astralix <code>{version}</code></h1><p>Your Telegram. In your own orbit.</p><p><b>Build</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/lowsense-dev/astralix">GitHub ↗</a></p>'
   confirm_cleardb: "⚠️ <b>Are you sure, that you want to clear database?</b>"
   cleardb_confirm: "🗑 Clear database"
   cancel: "🚫 Cancel"

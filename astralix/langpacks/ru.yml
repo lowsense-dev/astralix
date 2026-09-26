@@ -296,7 +296,7 @@ settings:
   no_alias: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Алиас</b> <code>{}</code> <b>не существует</b>"
   db_cleared: "<tg-emoji emoji-id=5197474765387864959>👍</tg-emoji> <b>База очищена</b>"
   astralix: "{} <b>{}.{}.{}</b> <i>{}</i>\n\n<b><tg-emoji emoji-id=5289608677244811430>📁</tg-emoji> <b>astralix-tl:</b> <i>{}</i>\n\n<tg-emoji emoji-id=5228879218363872764>⌨</tg-emoji> <b>Developers: , <b>"
-  rich_astralix_message: '<h1>astralix <code>{version}</code></h1><p>Твой Telegram. На твоей орбите.</p><p><b>Сборка</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/lowsense-dev/astralix">GitHub ↗</a></p>'
+  rich_astralix_message: '<figure><img src="{banner_url}"/></figure><h1>astralix <code>{version}</code></h1><p>Твой Telegram. На твоей орбите.</p><p><b>Сборка</b> {build}<br><b>astralix-tl</b> {htl_version} · API {layer}</p><p><a href="https://github.com/lowsense-dev/astralix">GitHub ↗</a></p>'
   _cfg_rich_mode: "Показывать astralix как Rich-сообщение."
   _cls_doc: "Управление базовыми настройками юзербота"
   confirm_cleardb: "⚠️ <b>Вы уверены, что хотите сбросить базу данных?</b>"

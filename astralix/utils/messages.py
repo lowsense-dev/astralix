@@ -19,12 +19,7 @@ import typing
 
 import grapheme
 import astralixtl
-from astralixtl.errors import (
-    ExternalUrlInvalidError,
-    RPCError,
-    WebpageCurlFailedError,
-    WebpageMediaEmptyError,
-)
+from astralixtl.errors import RPCError, WebpageMediaEmptyError
 from astralixtl.tl.custom import Message
 from astralixtl.tl.types import (
     Channel,
@@ -360,14 +355,9 @@ async def answer_with_media_fallback(message, *args, **kwargs):
     try:
         return await answer(message, *args, **kwargs)
     except RPCError as error:
-        if not isinstance(
-            error,
-            (WebpageMediaEmptyError, WebpageCurlFailedError, ExternalUrlInvalidError),
-        ) and getattr(error, "message", None) not in {
-            "RICH_MESSAGE_PHOTO_NO_MEDIA_FOUND",
-            "WEBPAGE_CURL_FAILED",
-            "EXTERNAL_URL_INVALID",
-        }:
+        if not isinstance(error, WebpageMediaEmptyError) and getattr(
+            error, "message", None
+        ) != "RICH_MESSAGE_PHOTO_NO_MEDIA_FOUND":
             raise
         rich_message = kwargs.get("rich_message")
         if rich_message:
