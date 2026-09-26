@@ -147,8 +147,6 @@ class AstralixInfoMod(loader.Module):
         platform_emoji = utils.get_named_platform_emoji()
 
         for emoji, icon in [
-            ("🍊", '<tg-emoji emoji-id="5449599833973203438">🧡</tg-emoji>'),
-            ("🍇", '<tg-emoji emoji-id="5449468596952507859">💜</tg-emoji>'),
             ("😶‍🌫️", '<tg-emoji emoji-id="5370547013815376328">😶‍🌫️</tg-emoji>'),
             ("❓", '<tg-emoji emoji-id="5407025283456835913">📱</tg-emoji>'),
             ("🍀", '<tg-emoji emoji-id="5395325195542078574">🍀</tg-emoji>'),

@@ -37,13 +37,6 @@ def get_named_platform() -> str:
     :return: Platform name
     """
 
-    with contextlib.suppress(Exception):
-        if os.path.isfile("/proc/device-tree/model"):
-            with open("/proc/device-tree/model") as f:
-                model = f.read().strip()
-                if any(board in model for board in ("Orange", "Raspberry")):
-                    return model
-
     match True:
 
         case _ if IS_WINDOWS:
@@ -63,18 +56,6 @@ def get_named_platform_emoji() -> str:
     """
     Returns emoji for current platform
     """
-
-    with contextlib.suppress(Exception):
-        if os.path.isfile("/proc/device-tree/model"):
-            with open("/proc/device-tree/model") as f:
-                model = f.read()
-                if "Orange" in model:
-                    return "🍊 "
-
-                if "Raspberry" in model:
-                    return "🍇 "
-                else:
-                    return "?"
 
     match True:
 
