@@ -34,7 +34,7 @@ class CoreMod(loader.Module):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/lowsense-dev/astralix/main/assets/astralix-banner.png",
+                "https://raw.githubusercontent.com/lowsense-dev/astralix/refs/heads/main/assets/astralix-banner.png",
                 "Banner for .astralix",
                 validator=loader.validators.Link(),
             ),

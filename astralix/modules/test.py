@@ -124,7 +124,7 @@ class TestMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/lowsense-dev/astralix/main/assets/ping-banner.png",
+                "https://raw.githubusercontent.com/lowsense-dev/astralix/refs/heads/main/assets/ping-banner.png",
                 lambda: self.strings["banner_url"],
                 validator=loader.validators.RandomLink(),
             ),

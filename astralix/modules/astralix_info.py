@@ -57,7 +57,7 @@ class AstralixInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/lowsense-dev/astralix/main/assets/info-banner.png",
+                "https://raw.githubusercontent.com/lowsense-dev/astralix/refs/heads/main/assets/info-banner.png",
                 lambda: self.strings["_cfg_banner"],
                 validator=loader.validators.String(),
             ),

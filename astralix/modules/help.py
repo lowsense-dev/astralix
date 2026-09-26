@@ -66,7 +66,7 @@ class Help(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/lowsense-dev/astralix/main/assets/help-banner.png",
+                "https://raw.githubusercontent.com/lowsense-dev/astralix/refs/heads/main/assets/help-banner.png",
                 lambda: "Banner for .help",
                 validator=loader.validators.RandomLink(),
             ),
