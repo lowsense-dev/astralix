@@ -1,4 +1,4 @@
-git+https://github.com/lowsense-dev/astralix-tl.git
+git+https://git.astralix.cc/lowsense-dev/astralix-tl.git
 pyaes
 gitpython==3.1.60
 deep-translator==1.11.4
