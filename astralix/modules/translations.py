@@ -190,7 +190,7 @@ class Translations(loader.Module):
             "en": "🇬🇧",
             "tt": "🥟",
             "kz": "🇰🇿",
-            "de": "🇩🇪",
+            "ru": "🇷🇺",
             "fr": "🇫🇷",
             "uz": "🇺🇿",
         }
