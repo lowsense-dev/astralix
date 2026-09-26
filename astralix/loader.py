@@ -184,6 +184,8 @@ def patched_import(name: str, *args, **kwargs):
                 return native_import("astralixtl" + name[8:], *args, **kwargs)
             case s if s.startswith("hikkatl"):
                 return native_import("astralixtl" + name[7:], *args, **kwargs)
+            case s if s == "herokutl" or s.startswith("herokutl."):
+                return native_import("astralixtl" + name[8:], *args, **kwargs)
             case s if s.startswith("hikkalls"):
                 return native_import(name, *args, **kwargs)
             case s if s.startswith("hikka"):

@@ -489,6 +489,7 @@ class Evaluator(loader.Module):
             "astralixtl": astralixtl,
             "telethon": astralixtl,
             "hikkatl": astralixtl,
+            "herokutl": astralixtl,
             "utils": utils,
             "main": main,
             "loader": loader,
