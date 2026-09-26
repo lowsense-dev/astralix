@@ -1,5 +1,18 @@
 /* © LowSense, 2026 · GNU AGPLv3 */
 "use strict";
+const mobileMenu = document.querySelector(".mobile-menu");
+document.addEventListener("click", event => {
+  if (mobileMenu && !mobileMenu.contains(event.target)) mobileMenu.open = false;
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && mobileMenu?.open) {
+    mobileMenu.open = false;
+    mobileMenu.querySelector("summary").focus();
+  }
+});
+window.matchMedia("(min-width: 721px)").addEventListener("change", event => {
+  if (event.matches && mobileMenu) mobileMenu.open = false;
+});
 const root = document.documentElement;
 const localeButton = document.querySelector(".locale");
 let language = navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en";
@@ -33,4 +46,3 @@ document.querySelectorAll(".copy").forEach(button => {
     window.setTimeout(() => { button.textContent = language === "ru" ? "Копировать" : "Copy"; }, 2500);
   });
 });
-
