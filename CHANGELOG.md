@@ -1,4 +1,16 @@
 # astralix Changelog
+
+## astralix 1.1.0
+
+- Unified English and Russian interface text, status messages and buttons.
+- Redesigned info, ping, help and module installation results in plain and rich modes.
+- Restored collapsible help sections and preserved module files when editing captions.
+- Added caption length handling for module descriptions on Premium and regular accounts.
+- Moved project dependencies to pyproject.toml and uv.lock, with astralix-tl from PyPI.
+- Added interactive systemd setup and the install.sh --systemd mode.
+
+## Upstream history
+
 ## ✨ astralix 2.1.0
 
  - fix security check in help

@@ -44,6 +44,7 @@ from urllib.parse import urlparse
 
 import requests
 from astralixtl.tl.custom import Message
+from astralixtl.extensions import html as html_parser
 from astralixtl.errors.common import ScamDetectionError
 from astralixtl.errors.rpcerrorlist import MediaCaptionTooLongError
 from astralixtl.tl.functions.channels import JoinChannelRequest
@@ -118,7 +119,7 @@ class LoaderMod(loader.Module):
             ),
             loader.ConfigValue(
                 "command_emoji",
-                "<tg-emoji emoji-id=5197195523794157505>▫️</tg-emoji>",
+                "·",
                 lambda: "Emoji for command",
             ),
             loader.ConfigValue(
@@ -408,6 +409,19 @@ class LoaderMod(loader.Module):
     ):
         """Send installation results using the selected message format."""
         if not rich:
+            if getattr(message, "document", None):
+                # Keep long results inside the original document's caption too.
+                reply_markup = None
+                kwargs.pop("file", None)
+                limit = 2048 if self._client.astralix_me.premium else 1024
+                plain, entities = html_parser.parse(text)
+                if len(plain.encode("utf-16-le")) // 2 > limit:
+                    hint = self.strings["caption_help"].format(
+                        utils.escape_html(self.get_prefix())
+                    )
+                    reserve = len(html_parser.parse(hint)[0].encode("utf-16-le")) // 2 + 4
+                    text = next(utils.smart_split(plain, entities, length=limit - reserve))
+                    text += "\n\n" + hint
             return await utils.answer_with_media_fallback(
                 message, text, parse_mode="HTML",
                 reply_markup=reply_markup, **kwargs,
@@ -437,10 +451,7 @@ class LoaderMod(loader.Module):
         single: bool = False,
     ) -> str:
         """Render batch results or a single module with description and commands."""
-        header = (
-            '✨ '
-            f"<b>{len(modules)} Modules loaded</b>"
-        )
+        header = '✨ ' + self.strings["batch_loaded"].format(len(modules))
         parts = [] if single else [f"<p>{header}</p>" if rich else header]
         if rich and not single and self.config["show_banner"]:
             slides = []
@@ -520,16 +531,15 @@ class LoaderMod(loader.Module):
                 description = utils.escape_html(inspect.getdoc(module) or "")
                 if description:
                     parts.append(
-                        '<p><i><tg-emoji emoji-id="5879813604068298387">ℹ️</tg-emoji> '
+                        '<p><i>'
                         + description.replace("\n", "<br/>") + "</i></p>"
                         if rich else "\n\n" + description
                     )
                 if lines:
-                    section("Commands", lines)
+                    section(self.strings["commands_title"], lines)
             else:
                 section(
-                    '<tg-emoji emoji-id="4916086774649848789">🔗</tg-emoji> '
-                    + utils.escape_html(str(name)),
+                    utils.escape_html(str(name)),
                     lines,
                     version_suffix,
                 )
@@ -542,7 +552,7 @@ class LoaderMod(loader.Module):
                 )
         if failed:
             section(
-                "Not loaded",
+                self.strings["failed_title"],
                 [f"<code>{utils.escape_html(name)}</code>" for name in failed],
             )
         return "".join(parts)
@@ -640,14 +650,7 @@ class LoaderMod(loader.Module):
             await utils.answer(message, self.strings["provide_module"])
             return
 
-        if message.file:
-            # Rich edits replace media, and inline forms delete their source
-            # message. Use a separate status reply so the uploaded module stays.
-            message = await message.reply(
-                self.strings["loading_module_via_file"], parse_mode="HTML"
-            )
-        else:
-            await utils.answer(message, self.strings["loading_module_via_file"])
+        await utils.answer(message, self.strings["loading_module_via_file"])
 
         path_ = None
         doc = await msg.download_media(bytes)
@@ -1332,7 +1335,10 @@ class LoaderMod(loader.Module):
             else ""
         )
 
-        rich_mode = self.config["rich_mode"]
+        # Keep an uploaded module in its original message by editing its caption.
+        # Rich content and inline forms would replace the document/message.
+        preserve_document = bool(getattr(message, "document", None))
+        rich_mode = self.config["rich_mode"] and not preserve_document
 
         def loaded_msg(use_subscribe: bool = True):
             if not rich_mode:
@@ -1367,6 +1373,8 @@ class LoaderMod(loader.Module):
                 if banner_url and urlparse(banner_url).scheme in {"http", "https"}:
                     result = f'<img src="{utils.escape_html(banner_url)}"/>' + result
             extra = []
+            if developer:
+                extra.append(developer)
             if origin != "<string>" and self.config["share_link"]:
                 extra.append(self.strings["modlink"].format(utils.escape_html(origin)))
             if use_subscribe and subscribe:
@@ -1418,6 +1426,9 @@ class LoaderMod(loader.Module):
             developer = ""
 
         banner_kwargs = {}
+        if preserve_document:
+            subscribe_markup = None
+            subscribe = ""
         if (
             self.config["show_banner"]
             and not subscribe_markup

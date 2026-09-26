@@ -1136,16 +1136,10 @@ class Astralix:
                 await client.astralix_inline.bot.send_photo(
                     log_chat_id,
                     str(LOGO_PATH),
-                    caption=(
-                        "<b>astralix {}</b> · started\n\n"
-                        'Build  <a href="https://github.com/lowsense-dev/astralix/commit/{}">{}</a>\n'
-                        "Status  {}\nPrefix  <code>{}</code>"
-                    ).format(
-                        ".".join(list(map(str, list(__version__)))),
-                        build,
-                        build[:7],
-                        upd,
-                        utils.escape_html("." if pref is None else pref),
+                    caption=client.loader.lookup("updater").strings["startup"].format(
+                        version=".".join(map(str, __version__)),
+                        build=f'<a href="https://git.astralix.cc/lowsense-dev/astralix/commit/{build}">{build[:7]}</a>',
+                        prefix=utils.escape_html("." if pref is None else pref),
                     ),
                     message_thread_id=message_thread_id,
                 )

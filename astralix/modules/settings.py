@@ -100,15 +100,20 @@ class CoreMod(loader.Module):
                 layer=astralixtl.tl.alltlobjects.LAYER,
                 current_user=getpass.getuser(),
                 banner_url=utils.escape_html(str(self.config["banner_url"] or "")),
+                img=(
+                    '<figure><img src="{}"/></figure>'.format(
+                        utils.escape_html(str(self.config["banner_url"]))
+                    ) if self.config["banner_url"] else ""
+                ),
             )
-            await utils.answer(
+            await utils.answer_with_media_fallback(
                 message,
                 rich_message=rich_message,
                 reply_to=getattr(message, "reply_to_msg_id", None),
             )
             return
 
-        await utils.answer(
+        await utils.answer_with_media_fallback(
             message,
             self.strings["astralix"].format(
                 "astralix",

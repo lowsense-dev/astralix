@@ -41,17 +41,17 @@ class Help(loader.Module):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "core_emoji",
-                "<tg-emoji emoji-id=4974681956907221809>▪️</tg-emoji>",
+                "•",
                 lambda: "Core module bullet",
             ),
             loader.ConfigValue(
                 "plain_emoji",
-                "<tg-emoji emoji-id=4974508259839836856>▪️</tg-emoji>",
+                "•",
                 lambda: "Plain module bullet",
             ),
             loader.ConfigValue(
                 "empty_emoji",
-                "<tg-emoji emoji-id=5100652175172830068>🟠</tg-emoji>",
+                "·",
                 lambda: "Empty modules bullet",
             ),
             loader.ConfigValue(
@@ -61,7 +61,7 @@ class Help(loader.Module):
             ),
             loader.ConfigValue(
                 "command_emoji",
-                "<tg-emoji emoji-id=5197195523794157505>▫️</tg-emoji>",
+                "·",
                 lambda: "Emoji for command",
             ),
             loader.ConfigValue(
@@ -190,7 +190,7 @@ class Help(loader.Module):
             else utils.escape_html(name)
         )
 
-        reply = "{} <b>{}</b>:".format(
+        reply = "{} <b>{}</b>".format(
             "✨",
             _name,
         )
@@ -198,9 +198,9 @@ class Help(loader.Module):
         cmds = ""
         if module.__doc__:
             reply += (
-                "\n<i><tg-emoji emoji-id=5879813604068298387>ℹ️</tg-emoji> "
+                "\n<i>"
                 + utils.escape_html(inspect.getdoc(module))
-                + "\n</i>"
+                + "</i>\n"
             )
 
         if isinstance(self.lookup(args), loader.Library):
@@ -215,8 +215,7 @@ class Help(loader.Module):
         if hasattr(module, "inline_handlers"):
             for name, fun in module.inline_handlers.items():
                 inline_cmd += (
-                    "\n<tg-emoji emoji-id=5372981976804366741>🤖</tg-emoji>"
-                    " <code>{}</code> {}".format(
+                    "\n<code>{}</code> — {}".format(
                         f"@{self.inline.bot_username} {name}",
                         (
                             utils.escape_html(inspect.getdoc(fun))
@@ -230,7 +229,7 @@ class Help(loader.Module):
         for name, fun in commands.items():
             lines.append(
                 f'{self.config["command_emoji"]}'
-                " <code>{}{}</code>{} {}".format(
+                " <code>{}{}</code>{} — {}".format(
                     utils.escape_html(self.get_prefix()),
                     name,
                     (
@@ -429,10 +428,10 @@ class Help(loader.Module):
 
             for cmd in commands:
                 if first:
-                    tmp += f": ( {cmd}"
+                    tmp += f"\n<code>{utils.escape_html(self.get_prefix() + cmd)}</code>"
                     first = False
                 else:
-                    tmp += f" | {cmd}"
+                    tmp += f" · <code>{utils.escape_html(self.get_prefix() + cmd)}</code>"
 
             icommands = []
 
@@ -461,20 +460,19 @@ class Help(loader.Module):
 
             for cmd in icommands:
                 if first:
-                    tmp += f": ( 🤖 {cmd}"
+                    tmp += f"\n<code>@{self.inline.bot_username} {utils.escape_html(cmd)}</code>"
                     first = False
                 else:
-                    tmp += f" | 🤖 {cmd}"
+                    tmp += f" · <code>@{self.inline.bot_username} {utils.escape_html(cmd)}</code>"
 
             for placeholder in placeholders:
                 if first:
-                    tmp += f": ( {{{placeholder}}}"
+                    tmp += f"\n<code>{{{utils.escape_html(placeholder)}}}</code>"
                     first = False
                 else:
-                    tmp += f" | {{{placeholder}}}"
+                    tmp += f" · <code>{{{utils.escape_html(placeholder)}}}</code>"
 
             if commands or icommands or placeholders:
-                tmp += " )"
                 if core:
                     core_ += [tmp]
                 else:
@@ -497,11 +495,11 @@ class Help(loader.Module):
                     if self.config["banner_url"]
                     else ""
                 )
-                + f"{self.config['desc_icon']} {reply}"
+                + f"<p>{self.config['desc_icon']} {reply.replace(chr(10), '<br>')}</p>"
             )
-            rich_core = "".join(f"<p>{item.strip()}</p>" for item in core_)
+            rich_core = "".join(f"<p>{item.strip().replace(chr(10), '<br>')}</p>" for item in core_)
             rich_modules = "".join(
-                f"<p>{item.strip()}</p>"
+                f"<p>{item.strip().replace(chr(10), '<br>')}</p>"
                 for item in plain_ + (no_commands_ if force else [])
             )
             if only_core:
