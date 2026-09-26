@@ -27,6 +27,7 @@ from astralixtl.types import InputMediaWebPage
 
 
 from .. import loader, utils
+from .._branding import HELP_BANNER_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -344,7 +345,7 @@ class Help(loader.Module):
             banner = InputMediaWebPage(str(self.config["banner_url"]))
 
         if not self.config["banner_url"]:
-            banner = None
+            banner = str(HELP_BANNER_PATH)
 
         force = False
         if "-f" in args:
@@ -520,7 +521,10 @@ class Help(loader.Module):
             )
             if not self.lookup("LoaderMod").fully_loaded:
                 rich_message += f"<p>{self.strings['partial_load']}</p>"
-            await utils.answer_with_media_fallback(message, rich_message=rich_message)
+            await utils.answer_with_banner(
+                message, rich_message=rich_message,
+                banner=HELP_BANNER_PATH if not self.config["banner_url"] else None,
+            )
             return
 
         match True:

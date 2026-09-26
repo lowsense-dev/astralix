@@ -17,6 +17,7 @@
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
 import getpass
+from .._branding import PING_BANNER_PATH
 import inspect
 import logging
 import os
@@ -417,7 +418,7 @@ class TestMod(loader.Module):
             banner = InputMediaWebPage(str(self.config["banner_url"]), optional=True)
 
         elif not self.config["banner_url"]:
-            banner = None
+            banner = str(PING_BANNER_PATH)
 
         data = {
             "ping": round((time.perf_counter_ns() - start) / 10**6, 3),
@@ -442,9 +443,10 @@ class TestMod(loader.Module):
             placeholders_msg = "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji>"
         if self.config["rich_mode"]:
             rich_message = placeholders_msg.replace("\r\n", "<br>").replace("\n", "<br>")
-            await utils.answer_with_media_fallback(
+            await utils.answer_with_banner(
                 message,
                 rich_message=rich_message,
+                banner=PING_BANNER_PATH if not self.config["banner_url"] else None,
             )
             return
 

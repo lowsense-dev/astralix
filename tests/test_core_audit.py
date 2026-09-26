@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 # main constructs the runtime at import; isolate its data and CLI arguments.
 _data = tempfile.TemporaryDirectory()
@@ -64,6 +64,48 @@ class CoreAuditTests(unittest.IsolatedAsyncioTestCase):
     async def test_rollback_rejects_invalid_callback_count(self):
         module=UpdaterMod()
         with self.assertRaises(ValueError):await module.rollback_confirm(Mock(),0)
+
+    async def test_restart_survives_no_git_and_archive_checkout(self):
+        from astralix.modules import updater
+        for no_git in (True, False):
+            with patch.object(updater, 'NO_GIT', no_git):
+                module = UpdaterMod()
+                module.get = Mock(side_effect=lambda key, default=None: {
+                    'autoupdate_answered': True, 'do_not_create': True,
+                }.get(key, default))
+                module.set = Mock()
+                module.inline = Mock()
+                with patch.object(updater.git, 'Repo', side_effect=updater.git.exc.InvalidGitRepositoryError) as repo:
+                    await module.client_ready()
+                    if no_git:
+                        repo.assert_not_called()
+                self.assertFalse(module._git_available)
+                module.restart_common = AsyncMock()
+                message = Mock()
+                with patch.object(updater.utils, 'get_args_raw', return_value='-f'):
+                    await module.restart(message)
+                module.restart_common.assert_awaited_once_with(message, False)
+
+    async def test_autoupdate_prompt_failure_does_not_unload_updater(self):
+        from astralix.modules import updater
+        with patch.object(updater, 'NO_GIT', False):
+            module = UpdaterMod()
+            module.get = Mock(side_effect=lambda key, default=None: {'do_not_create': True}.get(key, default))
+            module.set = Mock()
+            module.strings = {'autoupdate': 'Enable automatic updates?'}
+            module.tg_id = 1
+            module.inline = Mock(bot=Mock(send_message=AsyncMock(side_effect=RuntimeError('unavailable'))))
+            with patch.object(updater.git, 'Repo', return_value=MagicMock()):
+                await module.client_ready()
+            module.inline.bot.send_message.assert_awaited_once()
+
+    async def test_local_banner_is_uploaded_without_exposing_file_path_in_rich_html(self):
+        from astralix.utils import messages
+        message = Mock(client=Mock(send_file=AsyncMock()), reply_to_msg_id=10)
+        with patch.object(messages, 'get_chat_id', return_value=123), patch.object(messages, 'answer_with_media_fallback', new=AsyncMock()) as answer:
+            await messages.answer_with_banner(message, banner='/tmp/banner.png', rich_message='<h1>astralix</h1>')
+        message.client.send_file.assert_awaited_once_with(123, '/tmp/banner.png', reply_to=10, silent=True)
+        answer.assert_awaited_once_with(message, rich_message='<h1>astralix</h1>')
 
     async def test_fresh_start_uses_browser_before_console_api_prompt(self):
         app = main.Astralix.__new__(main.Astralix)

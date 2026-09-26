@@ -16,7 +16,7 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from .._branding import LOGO_PATH
+from .._branding import ASTRALIX_BANNER_PATH
 import getpass
 import astralixtl
 from astralixtl.tl.types import Message, User
@@ -96,9 +96,10 @@ class CoreMod(loader.Module):
                 current_user=getpass.getuser(),
                 banner_url="",
             )
-            await utils.answer(
+            await utils.answer_with_banner(
                 message,
                 rich_message=rich_message,
+                banner=ASTRALIX_BANNER_PATH,
                 reply_to=getattr(message, "reply_to_msg_id", None),
             )
             return
@@ -111,7 +112,7 @@ class CoreMod(loader.Module):
                 utils.get_commit_url(),
                 f"{astralixtl.__version__} #{astralixtl.tl.alltlobjects.LAYER}",
             ),
-            file=str(LOGO_PATH),
+            file=str(ASTRALIX_BANNER_PATH),
             reply_to=getattr(message, "reply_to_msg_id", None),
         )
 

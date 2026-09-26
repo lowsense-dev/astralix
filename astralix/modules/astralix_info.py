@@ -16,7 +16,7 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from .._branding import LOGO_PATH
+from .._branding import INFO_BANNER_PATH
 import time
 import logging
 import astralixtl
@@ -248,8 +248,9 @@ class AstralixInfoMod(loader.Module):
         start = time.perf_counter_ns()
 
         if self.config["rich_mode"]:
-            await utils.answer_with_media_fallback(
+            await utils.answer_with_banner(
                 message,
+                banner=INFO_BANNER_PATH if not self.config["banner_url"] else None,
                 rich_message=await self._render_info(
                     start,
                     template_key="rich_info_message",
@@ -264,7 +265,7 @@ class AstralixInfoMod(loader.Module):
             media = InputMediaWebPage(str(self.config["banner_url"]), optional=True)
 
         elif not self.config["banner_url"]:
-            media = None
+            media = str(INFO_BANNER_PATH)
 
         try:
             custom_message = self.config["custom_message"]
@@ -285,7 +286,3 @@ class AstralixInfoMod(loader.Module):
                 ),
                 reply_to=getattr(message, "reply_to_msg_id", None),
             )
-
-    @loader.command()
-    async def ubinfo(self, message: Message):
-        await utils.answer(message, self.strings["desc"])

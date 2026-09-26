@@ -65,6 +65,7 @@ class UpdaterMod(loader.Module):
     _EMFILE_FETCH_BACKOFF = 900
 
     def __init__(self):
+        self._git_available = not NO_GIT
         self._notified = None
         self._last_emfile_warning = 0.0
         self._last_git_fetch = 0.0
@@ -182,7 +183,7 @@ class UpdaterMod(loader.Module):
             )
 
     def get_changelog(self) -> str | typing.Literal[False]:
-        if NO_GIT:
+        if not self._git_available:
             return False
         try:
             return self._get_update_state()[2]
@@ -191,7 +192,7 @@ class UpdaterMod(loader.Module):
             return False
 
     def get_latest(self) -> str:
-        if NO_GIT:
+        if not self._git_available:
             return ""
         try:
             with git.Repo() as repo:
@@ -203,7 +204,7 @@ class UpdaterMod(loader.Module):
 
     @loader.loop(interval=60, autostart=True)
     async def poller(self):
-        if NO_GIT:
+        if not self._git_available:
             return
         try:
             current, self._pending, changelog = await utils.run_sync(self._get_update_state)
@@ -298,7 +299,7 @@ class UpdaterMod(loader.Module):
     @loader.callback_handler()
     async def update_call(self, call: InlineCall):
         """Process update buttons clicks"""
-        if NO_GIT:
+        if not self._git_available:
             await call.answer("Git disabled via --no-git.", show_alert=True)
             return
         if call.data not in {"astralix/update", "astralix/ignore_upd"}:
@@ -526,7 +527,7 @@ class UpdaterMod(loader.Module):
 
     @loader.command()
     async def update(self, message: Message):
-        if NO_GIT:
+        if not self._git_available:
             await utils.answer(
                 message,
                 "<b>Git disabled via --no-git.</b>",
@@ -586,7 +587,7 @@ class UpdaterMod(loader.Module):
         msg_obj: InlineCall | Message,
         hard: bool = False,
     ):
-        if NO_GIT:
+        if not self._git_available:
             logger.warning("Git disabled via --no-git; update skipped")
             return
         try:
@@ -604,11 +605,13 @@ class UpdaterMod(loader.Module):
         )
 
     async def client_ready(self):
-        try:
-            with git.Repo():
-                pass
-        except Exception as e:
-            raise loader.LoadError("Can't load due to repo init error") from e
+        if not NO_GIT:
+            try:
+                with git.Repo(os.path.dirname(utils.get_base_dir())):
+                    pass
+            except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
+                self._git_available = False
+                logger.info("Git checkout unavailable; restart remains enabled")
 
         if not self.get("autoupdate_answered"):
             self.set("autoupdate_answered", self.get("autoupdate", False))
@@ -644,32 +647,34 @@ class UpdaterMod(loader.Module):
 
             self.set("do_not_create", True)
 
-        if not self.config["autoupdate"] and not self.get("autoupdate_answered", False):
-            await self.inline.bot.send_photo(
-                self.tg_id,
-                photo=None,
-                caption=self.strings["autoupdate"],
-                reply_markup=self.inline.generate_markup(
-                    [
+        if self._git_available and not self.config["autoupdate"] and not self.get("autoupdate_answered", False):
+            try:
+                await self.inline.bot.send_message(
+                    self.tg_id,
+                    text=self.strings["autoupdate"],
+                    reply_markup=self.inline.generate_markup(
                         [
-                            {
-                                "text": "✅ Turn on",
-                                "callback": self._set_autoupdate_state,
-                                "args": (True,),
-                                "style": "success",
-                            }
-                        ],
-                        [
-                            {
-                                "text": "🚫 Turn off",
-                                "callback": self._set_autoupdate_state,
-                                "args": (False,),
-                                "style": "danger",
-                            }
-                        ],
-                    ]
-                ),
-            )
+                            [
+                                {
+                                    "text": "✅ Turn on",
+                                    "callback": self._set_autoupdate_state,
+                                    "args": (True,),
+                                    "style": "success",
+                                }
+                            ],
+                            [
+                                {
+                                    "text": "🚫 Turn off",
+                                    "callback": self._set_autoupdate_state,
+                                    "args": (False,),
+                                    "style": "danger",
+                                }
+                            ],
+                        ]
+                    ),
+                )
+            except Exception:
+                logger.warning("Could not show autoupdate prompt; restart remains enabled")
 
     async def _add_folder(self):
         folders = await self._client(GetDialogFiltersRequest())

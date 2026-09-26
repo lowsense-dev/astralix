@@ -12,6 +12,10 @@ REPO_URL = "https://github.com/radiocycle/astralix"
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "astralix.png"
 BOT_AVATAR_PATH = LOGO_PATH.with_name("astralix-bot.png")
 CHAT_AVATAR_PATH = LOGO_PATH.with_name("astralix-chat.png")
+HELP_BANNER_PATH = LOGO_PATH.with_name("help-banner.png")
+ASTRALIX_BANNER_PATH = LOGO_PATH.with_name("astralix-banner.png")
+INFO_BANNER_PATH = LOGO_PATH.with_name("info-banner.png")
+PING_BANNER_PATH = LOGO_PATH.with_name("ping-banner.png")
 
 
 WORDMARK = (
@@ -28,7 +32,7 @@ def startup_banner(version, commit, branch, status, *, color=False, width=80):
     reset = "\033[0m" if color else ""
     muted = "\033[38;5;245m" if color else ""
     bright = "\033[1;37m" if color else ""
-    palette = (81, 81, 111, 141, 177)
+    palette = (193,) * len(WORDMARK)
     lines = [""]
     if width >= 44:
         for row, shade in zip(WORDMARK, palette):
@@ -62,17 +66,16 @@ LOGIN_STAGES = {
 def login_banner(stage, *, color=False, width=80):
     title, subtitle = LOGIN_STAGES[stage]
     reset = "\033[0m" if color else ""
-    cyan = "\033[38;5;81m" if color else ""
-    purple = "\033[38;5;177m" if color else ""
+    accent = "\033[38;5;193m" if color else ""
     muted = "\033[38;5;245m" if color else ""
     rows = [""]
     if width >= 44:
-        for line, shade in zip(WORDMARK, (81, 81, 111, 141, 177)):
+        for line, shade in zip(WORDMARK, (193,) * len(WORDMARK)):
             paint = f"\033[38;5;{shade}m" if color else ""
             rows.append(f"  {paint}{line}{reset}")
     rows += [
-        "", f"  {cyan}✦{reset} astralix Userbot", "",
+        "", f"  {accent}✦{reset} astralix Userbot", "",
         f"  {muted}{'─' * min(48, max(12, width - 4))}{reset}",
-        f"  {purple}{title}{reset}", f"  {muted}{subtitle}{reset}", "",
+        f"  {accent}{title}{reset}", f"  {muted}{subtitle}{reset}", "",
     ]
     return "\n".join(rows)

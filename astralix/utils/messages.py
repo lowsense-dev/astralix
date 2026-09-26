@@ -351,6 +351,25 @@ async def _edit_inline_rich_message(
     return message
 
 
+async def answer_with_banner(message, *args, banner=None, **kwargs):
+    """Attach a bundled banner; rich HTML cannot reference private local files."""
+    if banner:
+        if kwargs.get("rich_message"):
+            # Keep rich content intact. Upload the image directly to Telegram,
+            # without a public image host or a private GitHub raw URL.
+            try:
+                await message.client.send_file(
+                    get_chat_id(message), str(banner),
+                    reply_to=getattr(message, "reply_to_msg_id", None) or get_topic(message),
+                    silent=True,
+                )
+            except RPCError:
+                logger.warning("Could not send command banner; sending content only")
+        else:
+            kwargs.setdefault("file", str(banner))
+    return await answer_with_media_fallback(message, *args, **kwargs)
+
+
 async def answer_with_media_fallback(message, *args, **kwargs):
     try:
         return await answer(message, *args, **kwargs)

@@ -1,5 +1,5 @@
 <div align="center">
-<img src="assets/astralix.svg" alt="astralix Userbot" width="520">
+<img src="assets/astralix.png" alt="astralix Userbot" width="520">
 </div>
 
 # astralix Userbot

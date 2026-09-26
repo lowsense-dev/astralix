@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0a0f1f"/><stop offset="1" stop-color="#172647"/></linearGradient><linearGradient id="star" x2="1" y2="1"><stop stop-color="#80f7ff"/><stop offset="1" stop-color="#b79aff"/></linearGradient></defs>
-<rect width="1200" height="630" rx="40" fill="url(#bg)"/>
-<circle cx="270" cy="310" r="146" fill="none" stroke="#5575a5" stroke-width="2"/>
-<path d="M270 130 303 276 450 310 303 344 270 490 236 344 90 310 236 276Z" fill="url(#star)"/>
-<circle cx="392" cy="177" r="8" fill="#80f7ff"/>
-<text x="485" y="325" fill="#f2f6ff" font-family="DejaVu Sans,sans-serif" font-size="104" font-weight="bold" letter-spacing="-5">astralix</text>
-<text x="490" y="393" fill="#94aacb" font-family="DejaVu Sans,sans-serif" font-size="32" letter-spacing="7">Userbot</text>
-</svg>
