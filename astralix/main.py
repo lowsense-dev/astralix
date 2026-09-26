@@ -387,8 +387,7 @@ def parse_arguments() -> dict:
         dest="qr_login",
         action="store_true",
         help=(
-            "Use QR code login instead of phone number (will only work if scanned from"
-            " another device)"
+            "Use QR code in console login (--no-web); scan from another device"
         ),
     )
     parser.add_argument(
@@ -459,7 +458,11 @@ def parse_arguments() -> dict:
         "--no-web",
         dest="no_web",
         action="store_true",
-        help=argparse.SUPPRESS,
+        help="Use console authentication instead of the local browser login",
+    )
+    parser.add_argument(
+        "--web-port", type=int, default=8765,
+        help="Loopback port for first-login web UI (default: 8765)",
     )
     parser.add_argument(
         "--wipe",
@@ -816,10 +819,50 @@ class Astralix:
         except Exception:
             return True
 
+    async def _web_initial_setup(self) -> bool:
+        from ._web_login import WebLogin
+
+        def make_client(api_id, api_hash):
+            return CustomTelegramClient(
+                MemorySession(), api_id, api_hash,
+                connection=self.conn, proxy=self.proxy,
+                connection_retries=2, request_retries=1, flood_sleep_threshold=0,
+                device_model=get_app_name(),
+                system_version=generate_random_system_version(),
+                app_version=".".join(map(str, __version__)),
+                lang_code="en", system_lang_code="en-US",
+            )
+
+        credentials = (self.api_token.ID, self.api_token.HASH) if self.api_token else None
+        login = WebLogin(make_client, credentials, register_secret)
+        try:
+            link = await login.start(self.arguments.web_port)
+            print_banner("banner.txt")
+            print(f"Open this private link to log in (valid for 15 minutes):\n{link}")
+            print(f"Remote server: ssh -N -L {login.port}:127.0.0.1:{login.port} user@server")
+            print("Console login: restart with --no-web. Ctrl+C to cancel.")
+            await asyncio.wait_for(login.done.wait(), timeout=900)
+            # Let the browser display completion before closing the temporary server.
+            await asyncio.sleep(2)
+            await login.stop_server()
+            save_config_key("api_id", login.credentials[0])
+            save_config_key("api_hash", login.credentials[1])
+            self._get_api_token()
+            await self.save_client_session(login.client)
+            return True
+        except asyncio.TimeoutError:
+            print("Web login expired. Restart astralix to get a new link.")
+            return False
+        finally:
+            await login.close()
+
     async def _initial_setup(self) -> bool:
         """Responsible for first start"""
         if self.arguments.no_auth:
             return False
+
+        if not self.arguments.no_web:
+            return await self._web_initial_setup()
 
         client = CustomTelegramClient(
             MemorySession(),
@@ -844,7 +887,7 @@ class Astralix:
             )
         )
 
-        user_choice = input(
+        user_choice = "y" if self.arguments.qr_login else input(
             "\033[0;96mUse QR code? [y/N]: \033[0m"
             if self.arguments.tty
             else "Use QR code? [y/N]: "
@@ -886,6 +929,7 @@ class Astralix:
 
             return False
 
+        print_qr()
         match await qr_login_poll():
             case None:
                 return await self._phone_login(client)
@@ -1188,6 +1232,14 @@ class Astralix:
 
     async def _main(self):
         """Main entrypoint"""
+        if (
+            not self.clients and not self.sessions
+            and not self.arguments.no_auth
+            and not self.arguments.no_web
+        ):
+            # API credentials are collected in the browser on a fresh installation.
+            await self._web_initial_setup()
+            return
         await self._get_token()
 
         if (

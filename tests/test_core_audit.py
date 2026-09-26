@@ -63,3 +63,54 @@ class CoreAuditTests(unittest.IsolatedAsyncioTestCase):
     async def test_rollback_rejects_invalid_callback_count(self):
         module=UpdaterMod()
         with self.assertRaises(ValueError):await module.rollback_confirm(Mock(),0)
+
+    async def test_fresh_start_uses_browser_before_console_api_prompt(self):
+        app = main.Astralix.__new__(main.Astralix)
+        app.clients = []
+        app.sessions = []
+        app.arguments = Mock(no_auth=False, no_web=False, qr_login=True)
+        app._web_initial_setup = AsyncMock(return_value=True)
+        app._get_token = AsyncMock()
+        await app._main()
+        app._web_initial_setup.assert_awaited_once()
+        app._get_token.assert_not_awaited()
+
+    async def test_no_web_uses_interactive_console(self):
+        app = main.Astralix.__new__(main.Astralix)
+        app.arguments = Mock(no_auth=False, no_web=True, qr_login=False, tty=False)
+        app.api_token = Mock(ID=123, HASH='a' * 32)
+        app.conn = app.proxy = None
+        app._web_initial_setup = AsyncMock()
+        app._phone_login = AsyncMock(return_value=True)
+        client = Mock(connect=AsyncMock())
+        with patch.object(main, 'CustomTelegramClient', return_value=client), patch.object(main, 'print_banner'), patch('builtins.print'), patch('builtins.input', return_value='n') as prompt:
+            self.assertTrue(await app._initial_setup())
+        prompt.assert_called_once()
+        app._phone_login.assert_awaited_once_with(client)
+        app._web_initial_setup.assert_not_awaited()
+
+    async def test_web_login_stops_http_before_saving_and_always_cleans_up(self):
+        app = main.Astralix.__new__(main.Astralix)
+        app.api_token = None
+        app.arguments = Mock(web_port=8765)
+        app._get_api_token = Mock()
+        order = []
+        async def save(client):
+            order.append('save')
+            raise OSError('disk failure')
+        app.save_client_session = AsyncMock(side_effect=save)
+        done = asyncio.Event()
+        done.set()
+        async def stop():
+            order.append('stop')
+        async def close():
+            order.append('close')
+        login = Mock(
+            credentials=(123, 'a' * 32), done=done, port=8765,
+            start=AsyncMock(return_value='http://127.0.0.1:8765/'),
+            stop_server=AsyncMock(side_effect=stop), close=AsyncMock(side_effect=close),
+        )
+        with patch('astralix._web_login.WebLogin', return_value=login), patch.object(main, 'save_config_key'), patch.object(main, 'print_banner'), patch('builtins.print'), patch.object(main.asyncio, 'sleep', new=AsyncMock()):
+            with self.assertRaises(OSError):
+                await app._web_initial_setup()
+        self.assertEqual(order, ['stop', 'save', 'close'])

@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- © radiocycle, 2026 · astralix Userbot · GNU AGPLv3
+     https://github.com/radiocycle/astralix -->
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>astralix — connect your orbit</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="astralix"><span class="spark">✦</span> astralix<span class="brand-label">Userbot</span></a>
+    <button id="locale" class="language" type="button" aria-label="Switch language">EN ↗</button>
+  </header>
+  <main>
+    <section class="visual" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="dot"></span><span data-i18n="eyebrow">YOUR OWN LITTLE UNIVERSE</span></div>
+      <h1 id="hero-title"><span data-i18n="hero1">Твой Telegram.</span><br><span class="muted" data-i18n="hero2">На твоей орбите.</span></h1>
+      <p class="hero-copy" data-i18n="heroCopy">Подключи аккаунт — остальное возьмёт на себя astralix.</p>
+      <div class="cosmos" aria-hidden="true">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+        <div class="star-core">✦</div><div class="satellite satellite-one"></div><div class="satellite satellite-two"></div>
+        <span class="coordinate coord-one">A / 01</span><span class="coordinate coord-two">CONNECTED BY YOU</span>
+      </div>
+      <div class="visual-bottom"><span>INDEPENDENT BY DESIGN</span><span>01 — ∞</span></div>
+    </section>
+    <section class="login-panel" aria-labelledby="form-title">
+      <div class="panel-top"><span class="eyebrow" data-i18n="setup">ПОДКЛЮЧЕНИЕ АККАУНТА</span><span id="step-count">01 / 04</span></div>
+      <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="form-content">
+        <div id="step-icon" class="step-icon" aria-hidden="true">↗</div>
+        <h2 id="form-title">Подключаемся…</h2>
+        <p id="form-description" class="description"></p>
+        <div id="notice" class="notice" role="alert" hidden></div>
+        <form id="login-form" autocomplete="off" hidden>
+          <div id="api-fields" class="fields" hidden>
+            <label for="api-id">API ID</label>
+            <input id="api-id" name="api_id" inputmode="numeric" pattern="[0-9]{1,10}" maxlength="10" placeholder="12345678" autocomplete="off">
+            <label for="api-hash">API hash</label>
+            <input id="api-hash" name="api_hash" type="password" minlength="32" maxlength="32" placeholder="••••••••••••••••••••••••••••••••" autocomplete="off" spellcheck="false">
+            <a class="inline-link" href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" data-i18n="apiLink">Получить на my.telegram.org ↗</a>
+          </div>
+          <div id="phone-fields" class="fields" hidden>
+            <label for="phone" data-i18n="phoneLabel">Номер телефона</label>
+            <input id="phone" name="phone" type="tel" maxlength="16" pattern="\+[0-9]{7,15}" placeholder="+79991234567" autocomplete="tel">
+            <p class="field-hint" data-i18n="phoneHint">С кодом страны, например +79991234567</p>
+          </div>
+          <div id="code-fields" class="fields" hidden>
+            <label for="code" data-i18n="codeLabel">Код подтверждения</label>
+            <input id="code" class="code-input" name="code" inputmode="numeric" pattern="[0-9]{5,8}" maxlength="8" placeholder="· · · · ·" autocomplete="one-time-code">
+            <p class="field-hint" data-i18n="codeHint">Проверь сервисные сообщения Telegram.</p>
+          </div>
+          <div id="password-fields" class="fields" hidden>
+            <label for="password" data-i18n="passwordLabel">Облачный пароль</label>
+            <div class="password-wrap"><input id="password" name="password" type="password" maxlength="1024" autocomplete="current-password"><button id="reveal" type="button" aria-pressed="false" data-i18n="show">Показать</button></div>
+            <p class="field-hint" data-i18n="passwordHint">Пароль двухэтапной аутентификации Telegram.</p>
+          </div>
+          <button id="submit" class="primary" type="submit"><span id="submit-label">Продолжить</span><span class="arrow" aria-hidden="true">↗</span></button>
+        </form>
+        <div id="completion" class="completion" hidden><span class="dot"></span><span data-i18n="ready">Можно закрыть эту вкладку</span></div>
+        <div class="privacy"><span aria-hidden="true">⌁</span><p data-i18n="privacy">Данные отправляются только в твой экземпляр astralix и Telegram.</p></div>
+      </div>
+      <div class="panel-footer"><span class="dot"></span><span data-i18n="private">Личное подключение</span><span class="footer-star">✦</span></div>
+    </section>
+  </main>
+  <footer class="page-footer"><span>astralix Userbot <span class="separator">/</span> made to be yours</span><a href="https://github.com/radiocycle/astralix" target="_blank" rel="noopener noreferrer">GitHub ↗</a></footer>
+  <noscript>Для входа включи JavaScript. / Enable JavaScript to sign in.</noscript>
+</body>
+</html>

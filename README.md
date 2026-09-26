@@ -25,7 +25,9 @@ uv pip install --python .venv/bin/python -r optional_requirements.txt
 
 Explicit module installation and explicit application updates may install dependencies through uv. Third-party modules execute with the same privileges as the userbot; review their source before loading them.
 
-The initial console login asks for Telegram API credentials and account authentication. Existing Heroku data is not automatically renamed: keep its backup and use a separate data directory for the rebranded application until migration is reviewed.
+Login uses the RU/EN web interface by default. Pass `--no-web` for interactive console login.
+
+Existing Heroku data is not automatically renamed: keep its backup and use a separate data directory for the rebranded application until migration is reviewed.
 
 ## Development
 
@@ -35,6 +37,4 @@ The initial console login asks for Telegram API credentials and account authenti
 uv pip check --python .venv/bin/python
 ```
 
-See [architecture and security review](docs/UV_AND_SECURITY.md) and [upstream attribution](THIRD_PARTY_NOTICES.md). The userbot retains its AGPL-3.0 license; the vendored Telegram library retains its MIT license.
-
-[Полный статический обзор и оставшиеся ограничения](docs/CODE_REVIEW.md) · [Реестр файлов](docs/CODE_INVENTORY.md)
+See [upstream attribution](THIRD_PARTY_NOTICES.md). The userbot retains its AGPL-3.0 license; the vendored Telegram library retains its MIT license.
