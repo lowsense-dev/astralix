@@ -446,9 +446,6 @@ updater:
   rollback_too_far: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>Вы откатываетесь слишком далеко!</b>"
   rollback_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Вы уверены, что хотите откатить {num} коммит(-а,-ов)?</b>"
   rollback_process: "<tg-emoji emoji-id=5873204392429096339>🕗</tg-emoji> <b>Откат {num} коммит(-a,-ов)...</b>"
-  autoupdate_notifier: "<tg-emoji emoji-id=5361979468887893611>🆕</tg-emoji> Новое обновление astralix!\n\n🔮 Новая версия astralix #{} доступна\n\n<i>Список изменений обновления</i>:\n<blockquote expandable>{}</blockquote>\n{}\n\n<b>Обновляю...</b>"
-  autoupdate_on: "🎆 Автоматические обновления <b>были включены!\nПриятного использования!</b>"
-  autoupdate_off: "❌ Автоматические обновления <b>были выключены!</b>\nЧтобы их включить используйте команду <code>{prefix}autoupdate</code>"
   announcement: "<b>📢Объявление:</b>\n\n<blockquote>{}</blockquote>"
   update_required: "<tg-emoji emoji-id=5361979468887893611>🆕</tg-emoji> <b>Новое обновление astralix!</b>\n\nВыпущена новая версия astralix.\n🔮 <b>astralix <s>{}</s> -> {}</b>\n\n{}"
   update: "🔄 Обновить"
@@ -457,14 +454,12 @@ updater:
   latest_disabled: "Уведомление о последнем обновлении было выключено"
   _cfg_doc_disable_notifications: "Выключить уведомления об обновлениях"
   changelog: '<tg-emoji emoji-id=5434144690511290129>📰</tg-emoji> <b>Список изменений последнего масштабного обновления:</b><blockquote expandable>{}</blockquote>'
-  _cfg_doc_autoupdate: "<tg-emoji emoji-id=5469741319330996757>💫</tg-emoji> Автоматические обновления для вашей astralix"
   _cmd_doc_restart: "Перезагружает юзербот"
   _cmd_doc_source: "Показать ссылку на исходный код проекта"
   _cmd_doc_update: "Скачивает обновления юзербота"
   _cmd_doc_rollback: "Откатывает обновления юзербота"
 
   name: Updater
-  _cmd_doc_autoupdate: Переключить автообновления
   _cmd_doc_changelog: Показать changelog последнего крупного обновления
   _cmd_doc_ubstop: Остановить юзербота
 astralix_plugin_security:
@@ -561,7 +556,6 @@ loader:
   module_update_prompt: "<tg-emoji emoji-id=5765071340847501478>🔗</tg-emoji> <b>Модуль {} был обновлён. Установить?</b>"
   module_update_yes: "Да"
   module_update_no: "Нет"
-  module_update_always: "Всегда обновлять"
   module_update_installed: "<b>Обновление модуля установлено.</b>"
   module_update_declined: "<b>Обновление модуля отклонено.</b>"
   module_update_expired: "<b>Предложение обновления модуля устарело.</b>"

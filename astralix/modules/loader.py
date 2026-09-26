@@ -88,7 +88,6 @@ class LoaderMod(loader.Module):
         self._storage: RemoteStorage = None
         self._modules_cache_dir = os.path.join(main.BASE_DIR, ".modules_cache")
         self._pending_module_updates = {}
-        self._startup_updates_task = None
 
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
@@ -1780,7 +1779,6 @@ class LoaderMod(loader.Module):
 
     async def _inline__clearmodules(self, call: InlineCall):
         self.set("loaded_modules", {})
-        self.set("always_update_modules", [])
         self._pending_module_updates.clear()
         shutil.rmtree(self._modules_cache_dir, ignore_errors=True)
 
@@ -1864,7 +1862,6 @@ class LoaderMod(loader.Module):
         self,
         call: InlineCall,
         token: str,
-        always: bool = False,
     ):
         pending = self._pending_module_updates.pop(token, None)
         if pending is None:
@@ -1872,11 +1869,6 @@ class LoaderMod(loader.Module):
             return
 
         url, doc = pending
-        if always:
-            urls = set(self.get("always_update_modules", []))
-            urls.add(url)
-            self.set("always_update_modules", sorted(urls))
-
         installed = await self.load_module(
             doc,
             call,
@@ -1919,7 +1911,7 @@ class LoaderMod(loader.Module):
                 {
                     "text": self.strings["module_update_yes"],
                     "callback": self._accept_module_update,
-                    "args": (token, False),
+                    "args": (token,),
                     "emoji_id": "5899757765743615694",
                     "style": "success",
                 },
@@ -1930,15 +1922,6 @@ class LoaderMod(loader.Module):
                     "emoji_id": "5872829476143894491",
                     "style": "danger",
                 },
-            ],
-            [
-                {
-                    "text": self.strings["module_update_always"],
-                    "callback": self._accept_module_update,
-                    "args": (token, True),
-                    "emoji_id": "5879883461711367869",
-                    "style": "primary",
-                }
             ],
         ]
         self.inline._units[unit_id] = {
@@ -1974,9 +1957,6 @@ class LoaderMod(loader.Module):
         self,
         url: str,
         cached_doc: str | None = None,
-        *,
-        name: str | None = None,
-        offer_update: bool = True,
     ) -> bool:
         if cached_doc is None:
             path = self._module_cache_path(url)
@@ -2005,24 +1985,9 @@ class LoaderMod(loader.Module):
             return False
 
         if self._is_core_module_update(url, remote_doc):
-            self._write_module_cache(url, remote_doc)
-            return True
+            return False
 
-        if url in self.get("always_update_modules", []):
-            installed = await self.load_module(
-                remote_doc,
-                None,
-                name,
-                url,
-                _raise_install_errors=True,
-            )
-            if installed:
-                self._write_module_cache(url, remote_doc)
-                self.update_modules_in_db()
-
-            return bool(installed)
-
-        if offer_update and not any(
+        if not any(
             pending_url == url
             for pending_url, _ in self._pending_module_updates.values()
         ):
@@ -2073,25 +2038,11 @@ class LoaderMod(loader.Module):
             async def check(name, url):
                 async with semaphore:
                     try:
-                        await self._check_module_update(url, name=name)
+                        await self._check_module_update(url)
                     except Exception:
                         logger.exception("Failed to update module %s", name)
 
             await asyncio.gather(*(check(name, url) for name, url in modules.items()))
-
-    @loader.loop(interval=60, wait_before=True, autostart=True)
-    async def _auto_update_modules(self):
-        if not self.fully_loaded or self._storage is None:
-            return
-
-        if self._startup_updates_task and not self._startup_updates_task.done():
-            return
-
-        loaded_modules = self.get("loaded_modules", {})
-        always_update_urls = set(self.get("always_update_modules", []))
-        for name, url in loaded_modules.items():
-            if url in always_update_urls:
-                await self._check_module_update(url, offer_update=False, name=name)
 
     async def _update_modules(self):
         started = time.perf_counter()
@@ -2129,7 +2080,7 @@ class LoaderMod(loader.Module):
         )
 
         if not self._secure_boot:
-            self._startup_updates_task = self.create_task(
+            self.create_task(
                 self._check_startup_updates(updates)
             )
             self.create_task(self._async_init())

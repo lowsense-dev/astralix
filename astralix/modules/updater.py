@@ -17,7 +17,6 @@
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
 from .._branding import LOGO_PATH
-import ast
 import asyncio
 import contextlib
 import errno
@@ -29,7 +28,6 @@ import sys
 import time
 import typing
 
-import aiohttp
 import git
 from git import Repo
 from astralixtl.tl.functions.messages import (
@@ -80,12 +78,6 @@ class UpdaterMod(loader.Module):
             loader.ConfigValue(
                 "disable_notifications",
                 doc=lambda: self.strings["_cfg_doc_disable_notifications"],
-                validator=loader.validators.Boolean(),
-            ),
-            loader.ConfigValue(
-                "autoupdate",
-                False,
-                doc=lambda: self.strings["_cfg_doc_autoupdate"],
                 validator=loader.validators.Boolean(),
             ),
         )
@@ -200,9 +192,7 @@ class UpdaterMod(loader.Module):
             self._log_git_poll_error(e)
             return
 
-        if (
-            self.config["disable_notifications"] and not self.config["autoupdate"]
-        ) or not changelog:
+        if self.config["disable_notifications"] or not changelog:
             return
 
         if (
@@ -213,68 +203,28 @@ class UpdaterMod(loader.Module):
             return
 
         if self._pending not in {current, self._notified}:
-            if not self.config["autoupdate"]:
-                manual_update = True
-            else:
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        r = await session.get(
-                            url=f"https://api.github.com/repos/lowsense-dev/astralix/contents/astralix/version.py?ref={version.branch}",
-                            headers={"Accept": "application/vnd.github.v3.raw"},
-                        )
-                        text = await r.text()
-
-                    new_version = ""
-                    for line in text.splitlines():
-                        if line.strip().startswith("__version__"):
-                            new_version = ast.literal_eval(line.split("=")[1])
-
-                    if version.__version__[0] == new_version[0]:
-                        manual_update = False
-                    else:
-                        logger.info("Got a major update, updating manually")
-                        manual_update = True
-                except Exception:
-                    manual_update = True
-
-            if manual_update:
-                m = await self.inline.bot.send_photo(
-                    self.tg_id,
-                    str(LOGO_PATH),
-                    caption=self.strings["update_required"].format(
-                        current[:6],
-                        '<a href="https://github.com/lowsense-dev/astralix/compare/{}...{}">{}</a>'.format(
-                            current[:12],
-                            self._pending[:12],
-                            self._pending[:6],
-                        ),
-                        changelog,
-                    ),
-                    reply_markup=self._markup(),
-                )
-
-                self._notified = self._pending
-                self.set("ignore_permanent", False)
-
-                await self._delete_all_upd_messages()
-
-                self.set("upd_msg", m.message_id)
-
-            else:
-                m = await self.inline.bot.send_photo(
-                    self.tg_id,
-                    str(LOGO_PATH),
-                    caption=self.strings["autoupdate_notifier"].format(
+            m = await self.inline.bot.send_photo(
+                self.tg_id,
+                str(LOGO_PATH),
+                caption=self.strings["update_required"].format(
+                    current[:6],
+                    '<a href="https://github.com/lowsense-dev/astralix/compare/{}...{}">{}</a>'.format(
+                        current[:12],
+                        self._pending[:12],
                         self._pending[:6],
-                        changelog,
-                        '<a href="https://github.com/lowsense-dev/astralix/compare/{}...{}">{}</a>'.format(
-                            current[:12],
-                            self._pending[:12],
-                            "🔎 diff",
-                        ),
                     ),
-                )
-                await self.invoke("update", "-f", peer=self.inline.bot_username)
+                    changelog,
+                ),
+                reply_markup=self._markup(),
+            )
+
+            self._notified = self._pending
+            self.set("ignore_permanent", False)
+
+            await self._delete_all_upd_messages()
+
+            self.set("upd_msg", m.message_id)
+
 
     async def _delete_all_upd_messages(self):
         for client in self.allclients:
@@ -548,17 +498,6 @@ class UpdaterMod(loader.Module):
         except Exception:
             logger.debug("Update confirmation unavailable", exc_info=True)
         await self.inline_update(message)
-
-    @loader.command()
-    async def autoupdate(self, message: Message):
-        """| switch autoupdate state"""
-        self.config["autoupdate"] = not self.config["autoupdate"]
-        if self.config["autoupdate"]:
-            await utils.answer(message, self.strings["autoupdate_on"])
-        else:
-            await utils.answer(
-                message, self.strings["autoupdate_off"].format(prefix=self.get_prefix())
-            )
 
     async def inline_update(
         self,

@@ -489,11 +489,7 @@ updater:
   rollback_too_far: "<tg-emoji emoji-id=5121063440311386962>❌</tg-emoji> <b>You're rolling back too far!</b>"
   rollback_confirm: "<tg-emoji emoji-id=5382187118216879236>❓</tg-emoji> <b>Are you sure you want to rollback {num} commit(-s)?</b>"
   rollback_process: "<tg-emoji emoji-id=5873204392429096339>🕗</tg-emoji> <b>Rolling {num} commits back...</b>"
-  autoupdate_notifier: "<tg-emoji emoji-id=5361979468887893611>🆕</tg-emoji> New astralix update!\n\n🔮 New astralix version #{} is available\n\n<i>Update changelog</i>:\n<blockquote expandable>{}</blockquote>\n{}\n\n<b>Updating...</b>"
-  autoupdate_on: "🎆 Automatic updates <b>have been enabled!\nEnjoy using it!</b>"
-  autoupdate_off: "❌ Automatic updates <b>have been disabled!</b>\nTo enable them, use the command <code>{prefix}autoupdate</code>"
   announcement: "<b>📢 Announcement:</b>\n\n<blockquote>{}</blockquote>"
-  _cfg_doc_autoupdate: "💫 Automatic updates for your astralix"
   _cmd_doc_restart: "Restarts the userbot"
   _cmd_doc_source: "Links the source code of this project"
   _cmd_doc_update: "Downloads userbot updates"
@@ -507,7 +503,6 @@ updater:
   ignore: "🚫 Ignore"
   changelog: '<tg-emoji emoji-id=5434144690511290129>📰</tg-emoji> <b>Changelog of the last major update:</b><blockquote expandable>{}</blockquote>'
 
-  _cmd_doc_autoupdate: Toggle automatic updates
   _cmd_doc_changelog: Show changelog of the last major update
   _cmd_doc_ubstop: Stop your userbot
 api_protection:
@@ -587,7 +582,6 @@ loader:
   module_update_prompt: "<tg-emoji emoji-id=5765071340847501478>🔗</tg-emoji> <b>Module {} has been updated. Install it?</b>"
   module_update_yes: "Yes"
   module_update_no: "No"
-  module_update_always: "Always update"
   module_update_installed: "<b>Module update installed.</b>"
   module_update_declined: "<b>Module update declined.</b>"
   module_update_expired: "<b>The module update offer has expired.</b>"
