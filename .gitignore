@@ -159,7 +159,7 @@ config.json
 !assets/astralix-bot.png
 !assets/astralix-chat.png
 !assets/*-banner.png
-!site/favicon.png
+/site/
 *.webp
 *.webm
 *.tgs
