@@ -1,0 +1,40 @@
+<div align="center">
+<img src="assets/astralix.svg" alt="astralix Userbot" width="520">
+</div>
+
+# astralix Userbot
+
+Telegram userbot with a locally built **astralix-tl** library.
+Project repository: **radiocycle/astralix** (private). There are no project Telegram channels or support chats.
+
+## Install from the source directory
+
+Install Python 3.10+ and uv, then run from this directory:
+
+```bash
+uv venv --python python3 .venv
+uv pip install --python .venv/bin/python -r requirements.txt
+.venv/bin/python -m astralix --no-git
+```
+
+The `--no-git` option is required for an archive checkout. Dependencies are installed explicitly; starting the application does not install or update packages. Optional dependencies:
+
+```bash
+uv pip install --python .venv/bin/python -r optional_requirements.txt
+```
+
+Explicit module installation and explicit application updates may install dependencies through uv. Third-party modules execute with the same privileges as the userbot; review their source before loading them.
+
+The initial console login asks for Telegram API credentials and account authentication. Existing Heroku data is not automatically renamed: keep its backup and use a separate data directory for the rebranded application until migration is reviewed.
+
+## Development
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -O -m unittest discover -s tests -v
+uv pip check --python .venv/bin/python
+```
+
+See [architecture and security review](docs/UV_AND_SECURITY.md) and [upstream attribution](THIRD_PARTY_NOTICES.md). The userbot retains its AGPL-3.0 license; the vendored Telegram library retains its MIT license.
+
+[Полный статический обзор и оставшиеся ограничения](docs/CODE_REVIEW.md) · [Реестр файлов](docs/CODE_INVENTORY.md)

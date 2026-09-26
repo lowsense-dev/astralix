@@ -1,0 +1,391 @@
+# ©️ Dan Gazizullin, 2021-2023
+# This file is a part of Hikka Userbot
+# 🌐 https://github.com/hikariatama/Hikka
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
+
+# ©️ Codrago, 2024-2030
+# This file is a part of Heroku Userbot
+# 🌐 https://github.com/ZetGoHack/Heroku
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
+
+# ©️ radiocycle, 2026
+# This file is a part of astralix Userbot
+# 🌐 https://github.com/radiocycle/astralix
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
+
+import asyncio
+import logging
+import os
+import random
+import re
+import typing
+
+from astralixtl.errors.rpcerrorlist import YouBlockedUserError
+from astralixtl.tl.functions.contacts import UnblockRequest
+
+from .. import utils
+from .._internal import fw_protect
+from .types import InlineUnit
+
+if typing.TYPE_CHECKING:
+    from ..inline.core import InlineManager
+
+logger = logging.getLogger(__name__)
+BOT_BASE_PATTERN = re.compile(r"(\w*)_[0-9a-zA-Z]{6}_bot")
+
+
+class TokenObtainment(InlineUnit):
+    async def _create_bot(self: "InlineManager"):
+        logger.info("User doesn't have bot, attempting creating new one")
+        async with self._client.conversation("@BotFather", exclusive=False) as conv:
+            await fw_protect()
+            m = await conv.send_message("/newbot")
+            r = await conv.get_response()
+
+            logger.debug(">> %s", m.raw_text)
+            logger.debug("<< %s", r.raw_text)
+
+            if "cannot create new bots" in r.raw_text.lower() or "20" in r.raw_text:
+                prefix = self._client.loader.get_prefix()
+
+                text = (
+                    "<b>🚫 @BotFather won't create an inline bot for this"
+                    " account because of spamban or has exceeded the 20-bot limit</b>.\n\n"
+                    "You can still enable inline features with an existing"
+                    " bot:\n\n"
+                    "• <b>You already own a bot</b> - attach it:"
+                    f" <code>{prefix}ch_astralix_bot &lt;username&gt;</code>"
+                    f" (or paste its token: <code>{prefix}ch_bot_token"
+                    " &lt;token&gt;</code>).\n\n"
+                    "• <b>You don't</b> - create a bot on another account"
+                    " via @BotFather, then transfer it to this account"
+                    " (@BotFather > <code>/mybots</code> > the bot >"
+                    " <b>Transfer Ownership</b>) and run"
+                    f" <code>{prefix}ch_astralix_bot &lt;username&gt;</code>"
+                    " here."
+                )
+
+                try:
+                    await self._client.send_message(
+                        "me",
+                        text,
+                    )
+                except Exception:
+                    logger.exception("Unable to send a warn to user's Saved Messages")
+
+                logger.error(utils.remove_html(text))
+
+                return False
+
+            await fw_protect()
+
+            await m.delete()
+            await r.delete()
+
+            from .. import main
+
+            if self._db.get("astralix.inline", "custom_bot", False):
+                username = self._db.get("astralix.inline", "custom_bot").strip("@")
+                username = f"@{username}"
+                try:
+                    await self._client.get_entity(username)
+                except ValueError:
+                    pass
+                else:
+                    uid = utils.rand(6)
+                    genran = "".join(random.choice(main.LATIN_MOCK))
+                    username = f"@{genran}_{uid}_bot"
+            else:
+                uid = utils.rand(6)
+                genran = "".join(random.choice(main.LATIN_MOCK))
+                username = f"@{genran}_{uid}_bot"
+
+            for msg in [
+                "🪐 astralix Userbot"[:64],
+                username,
+                "/setinline",
+                username,
+                "user@astralix:~$",
+                "/setinlinefeedback",
+                username,
+                "Enabled",
+                "/setuserpic",
+                username,
+            ]:
+                await fw_protect()
+                m = await conv.send_message(msg)
+                r = await conv.get_response()
+
+                logger.debug(">> %s", m.raw_text)
+                logger.debug("<< %s", r.raw_text)
+
+                if not self._token and (
+                    match := re.search(r"\d{6,}:[A-Za-z0-9_-]{35}", r.raw_text)
+                ):
+                    self._token = match.group(0)
+                    self._db.set("astralix.inline", "bot_token", self._token)
+
+                await fw_protect()
+                await m.delete()
+                await r.delete()
+
+            try:
+                await fw_protect()
+                from .. import main
+
+                m = await conv.send_file(main.BASE_PATH / "assets" / "astralix.png")
+                r = await conv.get_response()
+
+                logger.debug(">> <Photo>")
+                logger.debug("<< %s", r.raw_text)
+            except Exception:
+                await fw_protect()
+                m = await conv.send_message("/cancel")
+                r = await conv.get_response()
+
+                logger.debug(">> %s", m.raw_text)
+                logger.debug("<< %s", r.raw_text)
+
+            await fw_protect()
+
+            await m.delete()
+            await r.delete()
+
+        if self._token:
+            return True
+
+        return await self._assert_token(create_new_if_needed=False)
+
+    async def _assert_token(
+        self: "InlineManager",
+        create_new_if_needed: bool = True,
+        revoke_token: bool = False,
+        skip_search: bool = False,
+    ) -> bool:
+        if self._token:
+            return True
+
+        if skip_search:
+            logger.info("Skipping search for an existing bot, creating a new one")
+            return await self._create_bot() if create_new_if_needed else False
+
+        logger.info("Bot token not found in db, attempting search in BotFather")
+
+        if not self._db.get(__name__, "no_mute", False):
+            await utils.dnd(
+                self._client,
+                await self._client.get_entity("@BotFather"),
+                True,
+            )
+            self._db.set(__name__, "no_mute", True)
+
+        async with self._client.conversation("@BotFather", exclusive=False) as conv:
+            try:
+                await fw_protect()
+                m = await conv.send_message("/token")
+            except YouBlockedUserError:
+                await self._client(UnblockRequest(id="@BotFather"))
+                await fw_protect()
+                m = await conv.send_message("/token")
+
+            r = await conv.get_response()
+
+            logger.debug(">> %s", m.raw_text)
+            logger.debug("<< %s", r.raw_text)
+
+            await fw_protect()
+
+            await m.delete()
+            await r.delete()
+
+            if not hasattr(r, "reply_markup") or not hasattr(r.reply_markup, "rows"):
+                await conv.cancel_all()
+
+                return await self._create_bot() if create_new_if_needed else False
+
+            from .. import main
+
+            for row in r.reply_markup.rows:
+                for button in row.buttons:
+                    btn_text = button.text.strip("@")
+
+                    if self._db.get("astralix.inline", "custom_bot", False) and (
+                        self._db.get("astralix.inline", "custom_bot", False) != btn_text
+                    ):
+                        continue
+
+                    if not self._db.get("astralix.inline", "custom_bot", False) and not (
+                        (match := BOT_BASE_PATTERN.fullmatch(btn_text))
+                        and match.group(1) in main.LATIN_MOCK
+                    ):
+                        continue
+
+                    await fw_protect()
+
+                    m = await conv.send_message(button.text)
+                    r = await conv.get_response()
+
+                    logger.debug(">> %s", m.raw_text)
+                    logger.debug("<< %s", r.raw_text)
+
+                    if revoke_token:
+                        await fw_protect()
+                        await m.delete()
+                        await r.delete()
+
+                        await fw_protect()
+
+                        m = await conv.send_message("/revoke")
+                        r = await conv.get_response()
+
+                        logger.debug(">> %s", m.raw_text)
+                        logger.debug("<< %s", r.raw_text)
+
+                        await fw_protect()
+
+                        await m.delete()
+                        await r.delete()
+
+                        await fw_protect()
+
+                        m = await conv.send_message(button.text)
+                        r = await conv.get_response()
+
+                        logger.debug(">> %s", m.raw_text)
+                        logger.debug("<< %s", r.raw_text)
+
+                    token = r.raw_text.splitlines()[1]
+
+                    self._db.set("astralix.inline", "bot_token", token)
+                    self._token = token
+
+                    await fw_protect()
+
+                    await m.delete()
+                    await r.delete()
+
+                    for msg in [
+                        "/setinline",
+                        button.text,
+                        "user@astralix:~$",
+                        "/setinlinefeedback",
+                        button.text,
+                        "Enabled",
+                        "/setuserpic",
+                        button.text,
+                    ]:
+                        await fw_protect()
+                        m = await conv.send_message(msg)
+                        r = await conv.get_response()
+
+                        logger.debug(">> %s", m.raw_text)
+                        logger.debug("<< %s", r.raw_text)
+
+                        await fw_protect()
+
+                        await m.delete()
+                        await r.delete()
+
+                    try:
+                        await fw_protect()
+                        from .. import main
+
+                        m = await conv.send_file(
+                            main.BASE_PATH / "assets" / "astralix-ava.png"
+                        )
+                        r = await conv.get_response()
+
+                        logger.debug(">> <Photo>")
+                        logger.debug("<< %s", r.raw_text)
+                    except Exception:
+                        await fw_protect()
+                        m = await conv.send_message("/cancel")
+                        r = await conv.get_response()
+
+                        logger.debug(">> %s", m.raw_text)
+                        logger.debug("<< %s", r.raw_text)
+
+                    await fw_protect()
+
+                    await m.delete()
+                    await r.delete()
+
+                    # TODO: add bot commands setup
+                    return True
+
+        return await self._create_bot() if create_new_if_needed else False
+
+    async def _configure_inline_bot(self: "InlineManager", username: str):
+        username = f"@{username.strip('@')}"
+        async with self._client.conversation("@BotFather", exclusive=False) as conv:
+            for msg in [
+                "/setinline",
+                username,
+                "user@astralix:~$",
+                "/setinlinefeedback",
+                username,
+                "Enabled",
+            ]:
+                await fw_protect()
+                m = await conv.send_message(msg)
+                r = await conv.get_response()
+
+                logger.debug(">> %s", m.raw_text)
+                logger.debug("<< %s", r.raw_text)
+
+                await fw_protect()
+
+                await m.delete()
+                await r.delete()
+
+    async def _reassert_token(self: "InlineManager"):
+        is_token_asserted = await self._assert_token(revoke_token=True)
+        if not is_token_asserted:
+            self.init_complete = False
+        else:
+            await self.register_manager(ignore_token_checks=True)
+
+    async def _dp_revoke_token(self: "InlineManager", already_initialised: bool = True):
+        if already_initialised:
+            await self._stop()
+            logger.error("Got polling conflict. Attempting token revocation...")
+
+        self._db.set("astralix.inline", "bot_token", None)
+        self._token = None
+        if already_initialised:
+            asyncio.ensure_future(self._reassert_token())
+        else:
+            return await self._reassert_token()
+
+    async def _check_bot(self: "InlineManager", username: str):
+        username = username.strip("@")
+        async with self._client.conversation("@BotFather", exclusive=False) as conv:
+            try:
+                m = await conv.send_message("/token")
+            except YouBlockedUserError:
+                await self._client(UnblockRequest(id="@BotFather"))
+                m = await conv.send_message("/token")
+
+            r = await conv.get_response()
+
+            await m.delete()
+            await r.delete()
+
+            if not hasattr(r, "reply_markup") or not hasattr(r.reply_markup, "rows"):
+                return False
+
+            for row in r.reply_markup.rows:
+                for button in row.buttons:
+                    if username != button.text.strip("@"):
+                        continue
+
+                    m = await conv.send_message("/cancel")
+                    r = await conv.get_response()
+
+                    await m.delete()
+                    await r.delete()
+
+                    return True
