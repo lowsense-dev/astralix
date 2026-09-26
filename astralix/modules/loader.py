@@ -461,8 +461,9 @@ class LoaderMod(loader.Module):
         def section(title: str, lines: list[str], suffix: str = ""):
             if rich:
                 parts.append(
-                    f"<h2>{title}{suffix}</h2>"
+                    f"<details><summary>{title}{suffix}</summary>"
                     + "".join(f"<p>{line}</p>" for line in lines)
+                    + "</details>"
                 )
             else:
                 parts.append(f"\n\n<b>{title}</b>{suffix}")
@@ -639,7 +640,14 @@ class LoaderMod(loader.Module):
             await utils.answer(message, self.strings["provide_module"])
             return
 
-        await utils.answer(message, self.strings["loading_module_via_file"])
+        if message.file:
+            # Rich edits replace media, and inline forms delete their source
+            # message. Use a separate status reply so the uploaded module stays.
+            message = await message.reply(
+                self.strings["loading_module_via_file"], parse_mode="HTML"
+            )
+        else:
+            await utils.answer(message, self.strings["loading_module_via_file"])
 
         path_ = None
         doc = await msg.download_media(bytes)
