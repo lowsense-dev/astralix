@@ -17,7 +17,6 @@
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
 import asyncio
-import atexit
 import base64
 import contextlib
 import contextvars
@@ -28,7 +27,6 @@ import logging
 import os
 import random
 import re
-import signal
 import sys
 import tempfile
 from collections.abc import Callable
@@ -285,51 +283,24 @@ async def fw_protect():
     await asyncio.sleep(random.randint(1000, 2000) / 1000)
 
 
-def get_startup_callback() -> Callable:
-    return lambda *_: os.execl(
-        sys.executable,
-        sys.executable,
-        "-m",
-        os.path.relpath(os.path.abspath(os.path.dirname(os.path.abspath(__file__)))),
-        *sys.argv[1:],
-    )
-
-
-def die():
-    """Platform-dependent way to kill the current process group"""
-    match True:
-        case _ if "DOCKER" in os.environ:
-            sys.exit(0)
-        case _ if sys.platform == "win32":
-            sys.exit(0)
-        case _:
-            os.killpg(os.getpgid(os.getpid()), signal.SIGTERM)
-
-
 def restart():
-    if "--sandbox" in " ".join(sys.argv):
-        exit(0)
+    """Replace this process in place, preserving interpreter, cwd and CLI options."""
+    if "--sandbox" in sys.argv[1:]:
+        raise SystemExit(0)
 
-    if "ASTRALIX_DO_NOT_RESTART2" in os.environ:
-        print(
-            "astralix-tl version 1.0.0 or higher is required. Install dependencies with uv before restarting."
-        )
-        sys.exit(0)
-
-    logging.getLogger().setLevel(logging.CRITICAL)
-
-    print("🔄 Restarting...")
-
-    if "ASTRALIX_DO_NOT_RESTART" not in os.environ:
-        os.environ["ASTRALIX_DO_NOT_RESTART"] = "1"
-    else:
-        os.environ["ASTRALIX_DO_NOT_RESTART2"] = "1"
-
-    if "DOCKER" in os.environ or sys.platform == "win32":
-        atexit.register(get_startup_callback())
-    else:
-        signal.signal(signal.SIGTERM, get_startup_callback())
-    die()
+    env = os.environ.copy()
+    env.pop("ASTRALIX_DO_NOT_RESTART", None)
+    env.pop("ASTRALIX_DO_NOT_RESTART2", None)
+    # Keep the checkout importable even when started outside its directory.
+    root = str(Path(__file__).resolve().parent.parent)
+    paths = env.get("PYTHONPATH", "").split(os.pathsep)
+    env["PYTHONPATH"] = os.pathsep.join([root, *(p for p in paths if p and p != root)])
+    print("🔄 Restarting...", flush=True)
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(Exception):
+            stream.flush()
+    # An exec failure raises while the current application is still connected.
+    os.execve(sys.executable, [sys.executable, "-m", "astralix", *sys.argv[1:]], env)
 
 
 def print_banner(banner: str):

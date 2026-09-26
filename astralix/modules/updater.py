@@ -455,16 +455,6 @@ class UpdaterMod(loader.Module):
 
         self.set("restart_ts", time.time())
 
-        handler = logging.getLogger().handlers[0]
-        handler.setLevel(logging.CRITICAL)
-
-        for client in self.allclients:
-            # Terminate main loop of all running clients
-            # Won't work if not all clients are ready
-            if client is not message.client:
-                await client.disconnect()
-
-        await message.client.disconnect()
         restart()
 
     async def download_common(self):
