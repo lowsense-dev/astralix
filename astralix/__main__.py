@@ -138,7 +138,7 @@ else:
         print(
             f"Missing or incompatible dependency: {e}\n"
             "Install dependencies explicitly before starting astralix:\n"
-            "  uv pip install --python .venv/bin/python -r requirements.txt\n"
+            "  uv sync --locked --inexact\n"
             "  .venv/bin/python -m astralix"
         )
         sys.exit(1)

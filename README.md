@@ -4,26 +4,27 @@
 
 # astralix Userbot
 
-Telegram userbot with **astralix-tl** installed from `lowsense-dev/astralix-tl` on GitHub. Installing dependencies requires Git access to that private repository.
-Project repository: **lowsense-dev/astralix** (private). There are no project Telegram channels or support chats.
+Telegram userbot with **astralix-tl**, installed from [astralix Git](https://git.astralix.cc/lowsense-dev/astralix-tl).
+[Project repository](https://git.astralix.cc/lowsense-dev/astralix). Both repositories are public. There are no project Telegram channels or support chats.
 
 ## Install from the source directory
 
 Install Python 3.10+ and uv, then run from this directory:
 
 ```bash
-uv venv --python python3 .venv
-uv pip install --python .venv/bin/python -r requirements.txt
+uv sync --locked --inexact
 .venv/bin/python -m astralix --no-git
 ```
 
 The `--no-git` option is required for an archive checkout. Dependencies are installed explicitly; starting the application does not install or update packages. Optional dependencies:
 
 ```bash
-uv pip install --python .venv/bin/python -r optional_requirements.txt
+uv sync --locked --inexact --all-extras
 ```
 
 Explicit module installation and explicit application updates may install dependencies through uv. Third-party modules execute with the same privileges as the userbot; review their source before loading them.
+
+Dependencies are defined in `pyproject.toml` and pinned in `uv.lock`. `requirements.txt` is a generated compatibility export for older updaters. After changing dependencies, run `uv lock` and `uv export --locked --no-hashes --no-emit-project --output-file requirements.txt`.
 
 On first login, choose the RU/EN web interface through `tunnel.astralix.cc` or locally on `127.0.0.1`. The choice is saved. Use `--web-mode tunnel` or `--web-mode local` to change it, or `--no-web` for interactive console login. Tunnel links expire after 15 minutes and allow one browser connection; restart login for a new link if disconnected.
 

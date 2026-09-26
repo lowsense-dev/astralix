@@ -43,7 +43,7 @@ from astralixtl.tl.types import (
 )
 
 from .. import loader, utils, version
-from .._dependencies import REQUIREMENTS, install_command
+from .._dependencies import PROJECT_ROOT, sync_command
 from .._internal import restart
 from ..inline.types import BotInlineCall, InlineCall
 
@@ -418,7 +418,7 @@ class UpdaterMod(loader.Module):
                     for info in r:
                         if info.old_commit:
                             for d in new_commit.diff(info.old_commit):
-                                if d.b_path == "requirements.txt":
+                                if d.b_path in {"pyproject.toml", "uv.lock", "requirements.txt"}:
                                     return True
                 return False
             except git.exc.InvalidGitRepositoryError:
@@ -443,8 +443,9 @@ class UpdaterMod(loader.Module):
         logger.debug("Installing new requirements...")
         try:
             subprocess.run(
-                install_command("-r", str(REQUIREMENTS)),
-                cwd=REQUIREMENTS.parent,
+                sync_command(),
+                cwd=PROJECT_ROOT,
+                env={**os.environ, "UV_PROJECT_ENVIRONMENT": sys.prefix},
                 check=True,
                 timeout=600,
                 capture_output=True,
@@ -756,7 +757,7 @@ class UpdaterMod(loader.Module):
         utils.ensure_child_watcher()
         process = await asyncio.create_subprocess_exec(
             "git", "reset", "--hard", f"HEAD~{number}",
-            cwd=REQUIREMENTS.parent,
+            cwd=PROJECT_ROOT,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         _, error = await process.communicate()

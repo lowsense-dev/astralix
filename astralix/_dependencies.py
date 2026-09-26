@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 
-REQUIREMENTS = Path(__file__).resolve().parent.parent / "requirements.txt"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _installation_allowed = ContextVar("dependency_installation_allowed", default=True)
 
 
@@ -28,8 +28,7 @@ def dependency_installation(allowed: bool):
         _installation_allowed.reset(token)
 
 
-def install_command(*requirements: str, upgrade: bool = True) -> list[str]:
-    """Install into the active environment without depending on shell activation."""
+def _uv_command() -> list[str]:
     if not _installation_allowed.get():
         raise RuntimeError("Dependency installation is disabled during startup")
     candidates = (
@@ -46,7 +45,20 @@ def install_command(*requirements: str, upgrade: bool = True) -> list[str]:
     else:
         raise RuntimeError("uv is not installed. Install uv and run bash install.sh.")
 
-    command += ["pip", "install", "--python", sys.executable]
+    return command
+
+
+def sync_command() -> list[str]:
+    """Sync the project lockfile, preserving packages installed by user modules."""
+    return [
+        *_uv_command(), "sync", "--locked", "--inexact",
+        "--project", str(PROJECT_ROOT), "--python", sys.executable,
+    ]
+
+
+def install_command(*requirements: str, upgrade: bool = True) -> list[str]:
+    """Install explicit module requirements into the running environment."""
+    command = [*_uv_command(), "pip", "install", "--python", sys.executable]
     if upgrade:
         command.append("--upgrade")
     return [*command, *requirements]

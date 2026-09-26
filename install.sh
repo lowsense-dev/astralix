@@ -128,7 +128,7 @@ PY
 }
 
 prepare_repo() {
-	if [ -d "$MODULE_NAME" ] && [ -f "requirements.txt" ]; then
+	if [ -d "$MODULE_NAME" ] && [ -f "pyproject.toml" ]; then
 		return
 	fi
 
@@ -170,7 +170,7 @@ create_venv() {
 
 install_python_packages() {
 	info "Installing Python dependencies with uv..."
-	"${RUN_AS_USER[@]}" "$UV_CMD" pip install --python "$VENV_DIR/bin/python" --upgrade -r requirements.txt >>"$LOG_FILE" 2>&1 || fail "Requirements installation failed." 4
+	"${RUN_AS_USER[@]}" env UV_PROJECT_ENVIRONMENT="$VENV_DIR" "$UV_CMD" sync --locked --inexact --python "$VENV_DIR/bin/python" >>"$LOG_FILE" 2>&1 || fail "Dependency sync failed." 4
 }
 
 start_app() {
@@ -323,8 +323,8 @@ configure_service() {
 
 if [ "$SYSTEMD_ONLY" = true ]; then
 	# This mode must never clone, recreate a venv, install packages or run login.
-	if [ ! -d "$MODULE_NAME" ] || [ ! -f requirements.txt ]; then
-		if [ -d "$APP_NAME/$MODULE_NAME" ] && [ -f "$APP_NAME/requirements.txt" ]; then
+	if [ ! -d "$MODULE_NAME" ] || [ ! -f pyproject.toml ]; then
+		if [ -d "$APP_NAME/$MODULE_NAME" ] && [ -f "$APP_NAME/pyproject.toml" ]; then
 			cd "$APP_NAME"
 		else
 			fail "Run --systemd from the installed astralix directory." 5
