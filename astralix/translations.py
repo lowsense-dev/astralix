@@ -50,9 +50,6 @@ LANGUAGE_COMPAT_ALIASES = {
     "ja": ("jp",),
 }
 MEME_LANGUAGES = {
-    "leet": "🏴‍☠️ 1337",
-    "uwu": "🏴‍☠️ UwU",
-    "tiktok": "🏴‍☠️ TikTokKid",
     "neofit": "🏴‍☠️ Neofit",
 }
 
@@ -346,8 +343,8 @@ class Strings:
                                 list(iter_language_codes(original_lang))
                                 + (
                                     ["en"]
-                                    if original_lang in ["leet", "uwu", "neofit"]
-                                    else ["ru"] if original_lang == "tiktok" else []
+                                    if original_lang == "neofit"
+                                    else []
                                 )
                             )
                             if hasattr(self._mod, f"strings_{lang}")
