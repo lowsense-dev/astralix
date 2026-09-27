@@ -50,8 +50,6 @@ def get_git_hash() -> str | Literal[False]:
     """
     if _is_no_git():
         return False
-    if version.commit:
-        return version.commit
     try:
         with git.Repo() as repo:
             return repo.head.commit.hexsha
@@ -140,5 +138,5 @@ def get_commit_count() -> int:
 
 def is_up_to_date():
     with git.Repo(search_parent_directories=True) as repo:
-        diff = any(repo.iter_commits(f"{version.commit or 'HEAD'}..origin/{version.branch}", max_count=1))
+        diff = any(repo.iter_commits(f"HEAD..origin/{version.branch}", max_count=1))
         return not diff
