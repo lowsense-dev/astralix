@@ -100,6 +100,13 @@ class Help(loader.Module):
         match = re.search(r"# ?meta banner: ?(.+)", doc)
         return match.group(1).strip() if match else None
 
+    def _format_doc(self, obj) -> str:
+        return utils.remove_html(
+            inspect.getdoc(obj),
+            escape=True,
+            keep_emojis=self.client.astralix_me.premium,
+        )
+
     @loader.command(
         ru_doc="[args] | Спрячет ваши модули",
         ua_doc="[args] | Сховає ваші модулі",
@@ -199,7 +206,7 @@ class Help(loader.Module):
         if module.__doc__:
             reply += (
                 "\n<i>"
-                + utils.escape_html(inspect.getdoc(module))
+                + self._format_doc(module)
                 + "</i>\n"
             )
 
@@ -218,7 +225,7 @@ class Help(loader.Module):
                     "\n<code>{}</code> — {}".format(
                         f"@{self.inline.bot_username} {name}",
                         (
-                            utils.escape_html(inspect.getdoc(fun))
+                            self._format_doc(fun)
                             if fun.__doc__
                             else self.strings["undoc"]
                         ),
@@ -246,7 +253,7 @@ class Help(loader.Module):
                         else ""
                     ),
                     (
-                        utils.escape_html(inspect.getdoc(fun))
+                        self._format_doc(fun)
                         if fun.__doc__
                         else self.strings["undoc"]
                     ),

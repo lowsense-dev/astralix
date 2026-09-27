@@ -475,6 +475,13 @@ class LoaderMod(loader.Module):
             )
         return result
 
+    def _format_doc(self, obj) -> str:
+        return utils.remove_html(
+            inspect.getdoc(obj) or "",
+            escape=True,
+            keep_emojis=self._client.astralix_me.premium,
+        )
+
     def _batch_loaded_message(
         self, modules: list, failed: list[str], *, rich: bool = True,
         command_lines: list[str] | None = None,
@@ -543,8 +550,11 @@ class LoaderMod(loader.Module):
             )
             lines = []
             for command, handler in getattr(module, "commands", {}).items():
-                description = inspect.getdoc(handler) or self.strings["undoc"]
-                description = utils.escape_html(description)
+                description = (
+                    self._format_doc(handler)
+                    if handler.__doc__
+                    else self.strings["undoc"]
+                )
                 if rich:
                     description = description.replace("\n", "<br/>")
                 lines.append(
@@ -558,7 +568,7 @@ class LoaderMod(loader.Module):
                     f"<b>{utils.escape_html(str(name))}</b>{version_suffix}"
                 )
                 parts.append(f"<p>{title}</p>" if rich else title)
-                description = utils.escape_html(inspect.getdoc(module) or "")
+                description = self._format_doc(module)
                 if description:
                     parts.append(
                         '<p><i>'
@@ -1334,7 +1344,7 @@ class LoaderMod(loader.Module):
         if instance.__doc__:
             mod_doc += (
                 "<i>\n<tg-emoji emoji-id=5879813604068298387>ℹ️</tg-emoji>"
-                f" {utils.escape_html(inspect.getdoc(instance))}</i>\n\n"
+                f" {self._format_doc(instance)}</i>\n\n"
             )
 
         subscribe = ""
@@ -1499,7 +1509,7 @@ class LoaderMod(loader.Module):
                     f"{self.config['command_emoji']}",
                     self._loaded_command_name(_name, fun),
                     (
-                        utils.escape_html(inspect.getdoc(fun))
+                        self._format_doc(fun)
                         if fun.__doc__
                         else self.strings["undoc"]
                     ),
@@ -1515,7 +1525,7 @@ class LoaderMod(loader.Module):
                     self.strings["ihandler"].format(
                         f"@{self.inline.bot_username} {_name}",
                         (
-                            utils.escape_html(inspect.getdoc(fun))
+                            self._format_doc(fun)
                             if fun.__doc__
                             else self.strings["undoc"]
                         ),
