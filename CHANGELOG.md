@@ -1,6 +1,15 @@
 что.ты.заказала.
 # astralix Changelog
 
+## astralix 1.1.2
+
+- Verify signed release metadata and SHA-256 file inventories before preparing updates.
+- Keep manual update confirmation simple and pin the confirmed commit.
+- Separate module dependencies, record module provenance and add private diagnostic exports.
+- Require fresh account heartbeats and recover safely from interrupted release switches.
+- Preserve tunnel login sessions across page refreshes and reconnects; add QR login and immediate API credential saving.
+- Refresh English and Russian info/ping templates and rename the info placeholder to atl_version.
+
 ## astralix 1.1.1
 
 - Preserve uploaded modules and installation records across failed loads and restarts.
