@@ -407,8 +407,12 @@ class UpdaterMod(loader.Module):
         return [client.tg_id for client in self.allclients]
 
     def _channel(self):
-        state = Updates().read()
-        return state["active"]["channel"] if state else version.branch
+        manager = Updates()
+        state = manager.read()
+        return (
+            state["active"]["channel"]
+            if state else manager.git("branch", "--show-current")
+        )
 
     async def _show_error(self, message, error):
         logger.exception("Release operation failed")
@@ -418,15 +422,24 @@ class UpdaterMod(loader.Module):
 
     @loader.command()
     async def update(self, message: Message):
-        """Check for updates and confirm installation. Use -f to skip confirmation."""
+        """Check for updates; --channel main|dev selects a channel, -f skips confirmation."""
         if not self._git_available:
             await utils.answer(message, "<b>Git disabled via --no-git.</b>")
             return
-        args = utils.get_args_raw(message).split()
-        channel = self._channel()
+        args = (utils.get_args_raw(message) or "").split()
+        force = "-f" in args
+        if force:
+            args.remove("-f")
+        requested_channel = None
+        if len(args) == 2 and args[0] == "--channel" and args[1] in {"main", "dev"}:
+            requested_channel = args[1]
+        elif args:
+            await utils.answer(message, self.strings["update_usage"])
+            return
         try:
-            if channel not in {"main", "dev"} or args not in ([], ["-f"]):
-                raise ValueError(self.strings["update_usage"])
+            channel = requested_channel or self._channel()
+            if channel not in {"main", "dev"}:
+                raise ValueError(self.strings["release_invalid_channel"].format(channel or "detached HEAD"))
             report = await asyncio.to_thread(
                 Updates().check, self.config["GIT_ORIGIN_URL"], channel
             )
@@ -441,7 +454,7 @@ class UpdaterMod(loader.Module):
                 return
             if report["dirty"]:
                 raise RuntimeError(self.strings["release_dirty"])
-            if "-f" not in args:
+            if not force:
                 if self.inline.init_complete and await self.inline.form(message=message, text=text + "\n\n" + self.strings["release_confirm"],
                     reply_markup=[
                         {"text": self.strings["btn_update"], "callback": self.inline_update,
@@ -449,7 +462,7 @@ class UpdaterMod(loader.Module):
                         {"text": self.strings["cancel"], "action": "close"},
                     ]):
                     return
-                await utils.answer(message, text + "\n\n" + self.strings["release_confirm_cli"])
+                await utils.answer(message, text + "\n\n" + self.strings["release_confirm_cli"].format(channel))
                 return
             await self.inline_update(message, channel=channel, expected=report["target"])
         except Exception as error:
