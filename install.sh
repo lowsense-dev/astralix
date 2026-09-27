@@ -13,6 +13,7 @@ REPO_URL="${ASTRALIX_REPO_URL:-https://github.com/lowsense-dev/astralix.git}"
 VENV_DIR="${ASTRALIX_VENV_DIR:-.venv}"
 LOG_FILE="astralix-install.log"
 SYSTEMD_ONLY=false
+SERVICE_UNIT=""
 APP_ARGS=()
 for arg in "$@"; do
 	if [ "$arg" = --systemd ]; then
@@ -189,8 +190,8 @@ check_service_stopped() {
 	local -a ctl=(systemctl)
 	command -v systemctl >/dev/null 2>&1 || return 0
 	[ "$(id -u)" -eq 0 ] || ctl+=(--user)
-	if "${ctl[@]}" is-active --quiet astralix.service; then
-		fail "Stop the running service before reinstalling: ${ctl[*]} stop astralix.service" 5
+	if "${ctl[@]}" is-active --quiet "$SERVICE_UNIT"; then
+		fail "Stop the running service before reinstalling: ${ctl[*]} stop $SERVICE_UNIT" 5
 	fi
 }
 
@@ -225,6 +226,18 @@ exec_quote() {
 	unit_quote "${value//\$/\$\$}"
 }
 
+set_service_unit() {
+	local name="${1##*/}"
+	if command -v systemd-escape >/dev/null 2>&1; then
+		name="$(systemd-escape -- "$name")"
+	else
+		case "$name" in
+			''|*[!a-zA-Z0-9_.:@-]*) fail "Cannot derive a valid systemd unit name from the installation directory." 5 ;;
+		esac
+	fi
+	SERVICE_UNIT="$name.service"
+}
+
 configure_service() {
 	if ! command -v systemctl >/dev/null 2>&1 || [ ! -d /run/systemd/system ]; then
 		[ "$SYSTEMD_ONLY" = false ] || fail "--systemd requires a running systemd installation." 5
@@ -235,15 +248,15 @@ configure_service() {
 		info "No interactive terminal; skipping optional systemd setup."
 		return
 	fi
-	if [ "$SYSTEMD_ONLY" = false ]; then
-		ask_yes_no "Create an astralix systemd service?" || return 0
-	fi
-
 	local unit_dir target account account_home work_dir python_path unit_file temp_file arg
 	local -a ctl=(systemctl) app_args=(-m "$MODULE_NAME")
 	account="$("${RUN_AS_USER[@]}" id -un)"
 	account_home="$("${RUN_AS_USER[@]}" sh -c 'printf "%s" "$HOME"')"
 	work_dir="$(pwd -P)"
+	set_service_unit "$work_dir"
+	if [ "$SYSTEMD_ONLY" = false ]; then
+		ask_yes_no "Create systemd unit $SERVICE_UNIT?" || return 0
+	fi
 	# Do not resolve the python symlink: that would bypass the virtual environment.
 	python_path="$(cd "$VENV_DIR/bin" && pwd -P)/python"
 	if [ "$(id -u)" -eq 0 ]; then
@@ -254,15 +267,15 @@ configure_service() {
 		target=default.target
 		ctl+=(--user)
 	fi
-	unit_file="$unit_dir/astralix.service"
+	unit_file="$unit_dir/$SERVICE_UNIT"
 	if [ -e "$unit_file" ] || [ -L "$unit_file" ]; then
 		if [ "$SYSTEMD_ONLY" = false ]; then
 			ask_yes_no "Replace existing $unit_file?" || return 0
 		fi
 	fi
 	# Never replace/reconfigure a service while it owns the Telegram session.
-	if [ "$SYSTEMD_ONLY" = false ] && "${ctl[@]}" is-active --quiet astralix.service; then
-		info "astralix.service is already running. Stop it before reinstalling."
+	if [ "$SYSTEMD_ONLY" = false ] && "${ctl[@]}" is-active --quiet "$SERVICE_UNIT"; then
+		info "$SERVICE_UNIT is already running. Stop it before reinstalling."
 		exit 1
 	fi
 	[ -d .git ] || app_args+=(--no-git)
@@ -298,7 +311,7 @@ configure_service() {
 	rm -f "$temp_file"
 	"${ctl[@]}" daemon-reload || fail "Unit saved to $unit_file, but systemd could not reload it." 5
 	ok "Service created: $unit_file"
-	if [ "$SYSTEMD_ONLY" = true ] || ask_yes_no "Start astralix automatically at boot?"; then
+	if [ "$SYSTEMD_ONLY" = true ] || ask_yes_no "Start $SERVICE_UNIT automatically at boot?"; then
 		if [ "$target" = default.target ]; then
 			if ! loginctl enable-linger "$account"; then
 				if ! command -v sudo >/dev/null 2>&1 || ! sudo loginctl enable-linger "$account"; then
@@ -306,19 +319,19 @@ configure_service() {
 				fi
 			fi
 		fi
-		"${ctl[@]}" enable astralix.service || fail "Could not enable astralix.service." 5
+		"${ctl[@]}" enable "$SERVICE_UNIT" || fail "Could not enable $SERVICE_UNIT." 5
 	else
-		"${ctl[@]}" disable astralix.service || fail "Could not disable autostart." 5
+		"${ctl[@]}" disable "$SERVICE_UNIT" || fail "Could not disable autostart." 5
 	fi
 	if [ "$SYSTEMD_ONLY" = true ]; then
-		"${ctl[@]}" restart astralix.service || fail "Could not start astralix.service." 5
-		ok "astralix.service started; autostart enabled."
-		printf '  %s status astralix.service\n' "${ctl[*]}"
+		"${ctl[@]}" restart "$SERVICE_UNIT" || fail "Could not start $SERVICE_UNIT." 5
+		ok "$SERVICE_UNIT started; autostart enabled."
+		printf '  %s status %s\n' "${ctl[*]}" "$SERVICE_UNIT"
 		return
 	fi
 	info "This first run stays in the terminal for login. After stopping it with Ctrl+C:"
-	printf '  %s start astralix.service\n' "${ctl[*]}"
-	printf '  %s status astralix.service\n' "${ctl[*]}"
+	printf '  %s start %s\n' "${ctl[*]}" "$SERVICE_UNIT"
+	printf '  %s status %s\n' "${ctl[*]}" "$SERVICE_UNIT"
 }
 
 if [ "$SYSTEMD_ONLY" = true ]; then
@@ -359,10 +372,11 @@ if [ "${SUDO_USER:-}" != "" ]; then
 	chown "$SUDO_USER:" "$LOG_FILE" >/dev/null 2>&1 || true
 fi
 
-check_service_stopped
 install_system_packages
 PYTHON="$(python_cmd)"
 prepare_repo
+set_service_unit "$(pwd -P)"
+check_service_stopped
 check_python "$PYTHON"
 ensure_uv
 create_venv "$PYTHON"
