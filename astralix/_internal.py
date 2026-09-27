@@ -288,18 +288,20 @@ def restart():
     if "--sandbox" in sys.argv[1:]:
         raise SystemExit(0)
 
-    if os.environ.get("ASTRALIX_SUPERVISED") == "1":
-        from ._release_runner import RESTART
-        raise SystemExit(RESTART)
-
-    from ._release_runner import bootstrap
-    bootstrap()
-
     env = os.environ.copy()
     env.pop("ASTRALIX_DO_NOT_RESTART", None)
     env.pop("ASTRALIX_DO_NOT_RESTART2", None)
-    # Keep the checkout importable even when started outside its directory.
-    root = str(Path(__file__).resolve().parent.parent)
+    # Migrate older staged launches back to the installation checkout.
+    data_root_value = env.get("ASTRALIX_DATA_ROOT")
+    data_root = Path(data_root_value).expanduser() if data_root_value else None
+    if data_root is not None and (data_root / ".git").exists():
+        root = str(data_root.resolve())
+        candidate = data_root / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        executable = str(candidate) if candidate.is_file() else sys.executable
+        os.chdir(root)
+    else:
+        root = str(Path(__file__).resolve().parent.parent)
+        executable = sys.executable
     paths = env.get("PYTHONPATH", "").split(os.pathsep)
     env["PYTHONPATH"] = os.pathsep.join([root, *(p for p in paths if p and p != root)])
     print("🔄 Restarting...", flush=True)
@@ -307,7 +309,7 @@ def restart():
         with contextlib.suppress(Exception):
             stream.flush()
     # An exec failure raises while the current application is still connected.
-    os.execve(sys.executable, [sys.executable, "-m", "astralix", *sys.argv[1:]], env)
+    os.execve(executable, [executable, "-m", "astralix", *sys.argv[1:]], env)
 
 
 def print_banner(banner: str):

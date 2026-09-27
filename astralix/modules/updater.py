@@ -21,13 +21,17 @@ import asyncio
 import contextlib
 import errno
 import json
-import io
 import logging
 import os
+from pathlib import Path
+import subprocess
+import sys
 import time
 import typing
+from urllib.parse import urlsplit
 
 import git
+from git import Repo
 from astralixtl.tl.functions.messages import (
     GetDialogFiltersRequest,
     UpdateDialogFilterRequest,
@@ -40,8 +44,8 @@ from astralixtl.tl.types import (
     TextWithEntities,
 )
 
-from .. import loader, main, utils, version
-from .._updates import Updates
+from .. import loader, utils, version
+from .._dependencies import PROJECT_ROOT, sync_command
 from .._internal import restart
 from ..inline.types import BotInlineCall, InlineCall
 
@@ -54,7 +58,7 @@ os.environ["GIT_ASKPASS"] = "echo"
 
 @loader.tds
 class UpdaterMod(loader.Module):
-    """Updates itself, tracks latest astralix releases, and notifies you, if update is required"""
+    """Update astralix from its Git repository and notify about new commits."""
 
     strings = {"name": "Updater"}
     _GIT_FETCH_INTERVAL = 300
@@ -77,11 +81,6 @@ class UpdaterMod(loader.Module):
                 "disable_notifications",
                 doc=lambda: self.strings["_cfg_doc_disable_notifications"],
                 validator=loader.validators.Boolean(),
-            ),
-            loader.ConfigValue(
-                "startup_timeout", 180,
-                lambda: self.strings["startup_timeout_doc"],
-                validator=loader.validators.Integer(minimum=30, maximum=900),
             ),
         )
 
@@ -133,12 +132,21 @@ class UpdaterMod(loader.Module):
         return res
 
     def _get_update_state(self) -> tuple[str, str, str | typing.Literal[False]]:
-        with git.Repo() as repo:
-            channel = self._channel()
+        with git.Repo(PROJECT_ROOT) as repo:
+            origin = repo.remote("origin")
+            if origin.url != self.config["GIT_ORIGIN_URL"]:
+                origin.set_url(self.config["GIT_ORIGIN_URL"])
+            channel = repo.active_branch.name
             now = time.monotonic()
             if now >= self._git_fetch_backoff_until:
                 if now - self._last_git_fetch >= self._GIT_FETCH_INTERVAL:
-                    Updates().check(self.config["GIT_ORIGIN_URL"], channel)
+                    logger.debug("Fetching changelog from %s", origin.url)
+                    with contextlib.suppress(Exception):
+                        repo.git.fetch(
+                            "--quiet", "origin",
+                            f"+refs/heads/{channel}:refs/remotes/origin/{channel}",
+                            kill_after_timeout=60,
+                        )
                     self._last_git_fetch = now
             else:
                 logger.debug(
@@ -147,10 +155,16 @@ class UpdaterMod(loader.Module):
                 )
 
             current = repo.head.commit.hexsha
+            reference = f"origin/{channel}"
+            try:
+                repo.commit(reference)
+            except (git.BadName, git.BadObject, ValueError):
+                logger.debug("No remote tracking branch is available for %s", channel)
+                return current, current, False
             latest = next(
-                repo.iter_commits(f"refs/astralix-releases/{channel}", max_count=1)
+                repo.iter_commits(reference, max_count=1)
             ).hexsha
-            commits = [*repo.iter_commits(f"HEAD..refs/astralix-releases/{channel}")]
+            commits = [*repo.iter_commits(f"HEAD..{reference}")]
 
             return (
                 current,
@@ -171,10 +185,10 @@ class UpdaterMod(loader.Module):
         if not self._git_available:
             return ""
         try:
-            with git.Repo() as repo:
-                return next(
-                    repo.iter_commits(f"refs/astralix-releases/{self._channel()}", max_count=1)
-                ).hexsha
+            with git.Repo(PROJECT_ROOT) as repo:
+                return next(repo.iter_commits(
+                    f"origin/{repo.active_branch.name}", max_count=1
+                )).hexsha
         except Exception:
             return ""
 
@@ -249,7 +263,7 @@ class UpdaterMod(loader.Module):
         with contextlib.suppress(Exception):
             await call.delete()
 
-        await self.invoke("update", "", peer=self.inline.bot_username)
+        await self.invoke("update", "-f", peer=self.inline.bot_username)
 
     @loader.command()
     async def changelog(self, message: Message):
@@ -403,150 +417,196 @@ class UpdaterMod(loader.Module):
 
         restart()
 
-    def _accounts(self):
-        return [client.tg_id for client in self.allclients]
+    async def download_common(self, channel: str | None = None, expected: str | None = None):
+        channel = channel or version.branch
 
-    def _channel(self):
-        manager = Updates()
-        state = manager.read()
-        return (
-            state["active"]["channel"]
-            if state else manager.git("branch", "--show-current")
+        def _sync():
+            with Repo(PROJECT_ROOT) as repo:
+                if repo.is_dirty(untracked_files=False):
+                    raise RuntimeError(self.strings["update_dirty"])
+                origin = repo.remote("origin")
+                if origin.url != self.config["GIT_ORIGIN_URL"]:
+                    origin.set_url(self.config["GIT_ORIGIN_URL"])
+                logger.debug("Fetching %s from %s", channel, origin.url)
+                repo.git.fetch(
+                    "origin",
+                    f"+refs/heads/{channel}:refs/remotes/origin/{channel}",
+                    kill_after_timeout=120,
+                )
+                target = repo.commit(f"origin/{channel}")
+                if expected and target.hexsha != expected:
+                    raise RuntimeError(self.strings["update_changed"])
+                previous = repo.head.commit
+                previous_hash = previous.hexsha
+                if repo.active_branch.name != channel:
+                    if channel in repo.heads:
+                        local_branch = repo.heads[channel]
+                        if not repo.is_ancestor(local_branch.commit, target):
+                            raise RuntimeError(self.strings["update_diverged"])
+                        local_branch.checkout()
+                    else:
+                        local_branch = repo.create_head(channel, target)
+                        local_branch.set_tracking_branch(origin.refs[channel])
+                        local_branch.checkout()
+                elif previous != target and not repo.is_ancestor(previous, target):
+                    raise RuntimeError(self.strings["update_diverged"])
+                if repo.head.commit != target:
+                    repo.git.merge("--ff-only", target.hexsha)
+                changed_files = repo.git.diff("--name-only", previous_hash, target.hexsha).splitlines()
+                return bool({"pyproject.toml", "uv.lock", "requirements.txt"} & set(changed_files))
+
+        return await asyncio.wait_for(
+            asyncio.to_thread(_sync),
+            timeout=120,
         )
 
-    async def _show_error(self, message, error):
-        logger.exception("Release operation failed")
-        await utils.answer(message, self.strings["release_error"].format(
-            utils.escape_html(str(error))
-        ))
+    @staticmethod
+    def req_common():
+        # Now we have downloaded new code, install requirements
+        logger.debug("Installing new requirements...")
+        environment = PROJECT_ROOT / ".venv"
+        python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        if not python.is_file():
+            python = Path(sys.executable)
+        try:
+            subprocess.run(
+                sync_command(python),
+                cwd=PROJECT_ROOT,
+                env={**os.environ, "UV_PROJECT_ENVIRONMENT": str(environment)},
+                check=True,
+                timeout=600,
+                capture_output=True,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            logger.exception("Req install failed")
+            raise
 
     @loader.command()
     async def update(self, message: Message):
-        """Check for updates; --channel main|dev selects a channel, -f skips confirmation."""
         if not self._git_available:
-            await utils.answer(message, "<b>Git disabled via --no-git.</b>")
+            await utils.answer(
+                message,
+                "<b>Git disabled via --no-git.</b>",
+            )
             return
         args = (utils.get_args_raw(message) or "").split()
         force = "-f" in args
         if force:
             args.remove("-f")
-        requested_channel = None
+        channel = version.branch
         if len(args) == 2 and args[0] == "--channel" and args[1] in {"main", "dev"}:
-            requested_channel = args[1]
+            channel = args[1]
         elif args:
             await utils.answer(message, self.strings["update_usage"])
             return
         try:
-            channel = requested_channel or self._channel()
-            if channel not in {"main", "dev"}:
-                raise ValueError(self.strings["release_invalid_channel"].format(channel or "detached HEAD"))
-            report = await asyncio.to_thread(
-                Updates().check, self.config["GIT_ORIGIN_URL"], channel
-            )
-            text = self.strings["release_check"].format(
-                channel, report["current"][:12], report["target"][:12],
-                utils.escape_html(report["changes"] or self.strings["release_no_changes"]),
-                utils.escape_html(report["dependencies"] or self.strings["release_no_changes"]),
-                utils.escape_html(report["dirty"] or self.strings["release_clean"]),
-            )
-            if report["target"] == report["current"] and channel == report["branch"]:
-                await utils.answer(message, self.strings["release_current"])
+            with git.Repo(PROJECT_ROOT) as repo:
+                origin = repo.remote("origin")
+                if origin.url != self.config["GIT_ORIGIN_URL"]:
+                    origin.set_url(self.config["GIT_ORIGIN_URL"])
+                repo.git.fetch(
+                    "origin",
+                    f"+refs/heads/{channel}:refs/remotes/origin/{channel}",
+                    kill_after_timeout=120,
+                )
+                current = repo.head.commit.hexsha
+                upcoming = repo.commit(f"origin/{channel}").hexsha
+                current_branch = repo.active_branch.name
+                changes = self._format_changelog(
+                    list(repo.iter_commits(f"{current}..{upcoming}"))
+                ) or self.strings["update_no_changes"]
+            if current == upcoming and channel == current_branch:
+                await utils.answer(message, self.strings["update_current"])
                 return
-            if report["dirty"]:
-                raise RuntimeError(self.strings["release_dirty"])
             if not force:
-                if self.inline.init_complete and await self.inline.form(message=message, text=text + "\n\n" + self.strings["release_confirm"],
-                    reply_markup=[
-                        {"text": self.strings["btn_update"], "callback": self.inline_update,
-                         "args": (False, channel, report["target"]), "style": "primary"},
-                        {"text": self.strings["cancel"], "action": "close"},
-                    ]):
+                if not self.inline.init_complete:
+                    await utils.answer(
+                        message,
+                        self.strings["update_confirm_cli"].format(channel),
+                    )
                     return
-                await utils.answer(message, text + "\n\n" + self.strings["release_confirm_cli"].format(channel))
+                form = await self.inline.form(
+                    message=message,
+                    text=(
+                        self.strings["update_confirm"].format(
+                            current, current[:8], upcoming, upcoming[:8],
+                            channel, changes,
+                        )
+                    ),
+                    reply_markup=[
+                        {
+                            "text": self.strings["btn_update"],
+                            "callback": self.inline_update,
+                            "args": (False, channel, upcoming),
+                            "style": "primary",
+                        },
+                        {
+                            "text": self.strings["cancel"],
+                            "action": "close",
+                            "style": "danger",
+                        },
+                    ],
+                )
+                if not form:
+                    await utils.answer(
+                        message,
+                        self.strings["update_confirm_cli"].format(channel),
+                    )
                 return
-            await self.inline_update(message, channel=channel, expected=report["target"])
+            await self.inline_update(message, channel=channel, expected=upcoming)
         except Exception as error:
-            await self._show_error(message, error)
+            logger.exception("Update failed")
+            await utils.answer(
+                message,
+                self.strings["update_error"].format(utils.escape_html(str(error))),
+            )
 
-    async def inline_update(self, msg_obj: InlineCall | Message, hard=False, channel=None, expected=None):
+    async def inline_update(
+        self,
+        msg_obj: InlineCall | Message,
+        hard: bool = False,
+        channel: str | None = None,
+        expected: str | None = None,
+    ):
         if not self._git_available:
+            logger.warning("Git disabled via --no-git; update skipped")
             return
-        manager = Updates()
-        prepared = False
         try:
-            msg_obj = await utils.answer(msg_obj, self.strings["release_preparing"])
-            from .._module_inventory import requirements_for_sources
-            from .._dependencies import PROJECT_ROOT
-            sources = [item["source"] for client in self.allclients
-                       for item in client.loader.lookup("LoaderMod")._installed_sources().values()
-                       if item.get("source")]
-            requirements = await asyncio.to_thread(
-                requirements_for_sources, sources, (PROJECT_ROOT / "uv.lock").read_text()
-            )
-            requirements = sorted(set(requirements).union(*(
-                client.loader.lookup('LoaderMod').get('dependency_requests', []) for client in self.allclients
-            )))
-            health_modules = {str(client.tg_id): sorted(
-                mod.__class__.__name__ for mod in client.loader.modules
-                if getattr(mod, "__ready__", False)
-            ) for client in self.allclients}
-            release = await asyncio.to_thread(
-                manager.prepare, self.config["GIT_ORIGIN_URL"], channel or self._channel(),
-                main.BASE_DIR, self._accounts(), self.config["startup_timeout"],
-                expected=expected,
-                module_requirements=requirements, health_modules=health_modules,
-            )
-            if release is None:
-                await utils.answer(msg_obj, self.strings["release_current"])
-                return
-            prepared = True
+            if await self.download_common(channel, expected):
+                await asyncio.to_thread(self.req_common)
             await self.restart_common(msg_obj)
         except Exception as error:
-            if prepared:
-                await asyncio.to_thread(manager.cancel_pending)
-            await self._show_error(msg_obj, error)
-
-    @loader.command()
-    async def diagnostics(self, message: Message):
-        """Send a report without account credentials, sessions or logs to Saved Messages."""
-        from .._diagnostics import report
-        document = io.BytesIO(json.dumps(report(Updates().read(), self.allmodules.modules), indent=2).encode())
-        document.name = 'astralix-diagnostics.json'
-        await self._client.send_file('me', document, caption=self.strings['diagnostics_saved'])
-        await utils.answer(message, self.strings['diagnostics_saved'])
-
-    @loader.command()
-    async def updatehistory(self, message: Message):
-        """Show recent release operations and their results."""
-        state = Updates().read() or {}
-        lines = [
-            f"<code>{time.strftime('%Y-%m-%d %H:%M', time.localtime(item['time']))}</code>"
-            f" · <code>{utils.escape_html(item['commit'][:12])}</code>"
-            f" · {utils.escape_html(item['channel'])} · "
-            f"{self.strings['release_status_' + item['status']]}"
-            for item in state.get("history", [])[-12:]
-        ]
-        await utils.answer(message, self.strings["release_history"].format(
-            "\n".join(lines) or self.strings["release_no_history"]
-        ))
+            logger.exception("Update failed")
+            await utils.answer(
+                msg_obj,
+                self.strings["update_error"].format(utils.escape_html(str(error))),
+            )
 
     @loader.command()
     async def source(self, message: Message):
         await utils.answer(
             message,
-            self.strings["source"].format("https://git.astralix.cc/"),
+            self.strings["source"].format(self.config["GIT_ORIGIN_URL"]),
         )
 
     async def client_ready(self):
-        if self.config["GIT_ORIGIN_URL"].removesuffix(".git").rstrip("/") in {
-            "https://github.com/coddrago/Heroku",
-            "https://github.com/ZetGoHack/Heroku",
-        }:
-            self.config["GIT_ORIGIN_URL"] = REPO_URL
+        try:
+            configured = urlsplit(self.config["GIT_ORIGIN_URL"])
+            if (
+                configured.hostname != "github.com"
+                and (
+                    configured.path.rstrip("/") in {"", "/"}
+                    or configured.path.rstrip("/").removesuffix(".git")
+                    == "/lowsense-dev/astralix"
+                )
+            ):
+                self.config["GIT_ORIGIN_URL"] = REPO_URL
+        except ValueError:
+            logger.warning("Invalid update origin URL in updater configuration")
 
         if not NO_GIT:
             try:
-                with git.Repo(os.path.dirname(utils.get_base_dir())):
+                with git.Repo(PROJECT_ROOT):
                     pass
             except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
                 self._git_available = False
@@ -742,38 +802,49 @@ class UpdaterMod(loader.Module):
 
     @loader.command()
     async def rollback(self, message: Message):
-        """Return to the previous working release; --restore-data also restores configs."""
-        args = utils.get_args_raw(message).split()
-        if any(arg not in {"--restore-data", "-f"} for arg in args):
-            await utils.answer(message, self.strings["rollback_usage"])
+        if not (args := utils.get_args_raw(message)).isdigit():
+            await utils.answer(message, self.strings["invalid_args"])
             return
-        restore = "--restore-data" in args
-        if "-f" not in args and self.inline.init_complete:
-            if await self.inline.form(
-                message=message,
-                text=self.strings["release_rollback_data" if restore else "release_rollback_confirm"],
-                reply_markup=[
-                    {"text": self.strings["btn_restart"], "callback": self.rollback_confirm,
-                     "args": (restore,), "style": "primary"},
-                    {"text": self.strings["cancel"], "action": "close"},
+        if int(args) > 10:
+            await utils.answer(message, self.strings["rollback_too_far"])
+            return
+        await self.inline.form(
+            message=message,
+            text=self.strings["rollback_confirm"].format(num=args),
+            reply_markup=[
+                [
+                    {
+                        "text": "✅",
+                        "callback": self.rollback_confirm,
+                        "args": [args],
+                        "style": "success",
+                    }
                 ],
-            ):
-                return
-        await self.rollback_confirm(message, restore)
+                [
+                    {
+                        "text": "❌",
+                        "action": "close",
+                        "style": "danger",
+                    }
+                ],
+            ],
+        )
 
-    async def rollback_confirm(self, call: InlineCall | Message, restore_data=False):
-        manager = Updates()
-        prepared = False
-        try:
-            await asyncio.to_thread(
-                manager.rollback, self._accounts(), restore_data, self.config["startup_timeout"]
-            )
-            prepared = True
-            await self.restart_common(call)
-        except Exception as error:
-            if prepared:
-                await asyncio.to_thread(manager.cancel_pending)
-            await self._show_error(call, error)
+    async def rollback_confirm(self, call: InlineCall, number: int):
+        number = int(number)
+        if not 1 <= number <= 10:
+            raise ValueError("Rollback count must be between 1 and 10")
+        await utils.answer(call, self.strings["rollback_process"].format(num=number))
+        utils.ensure_child_watcher()
+        process = await asyncio.create_subprocess_exec(
+            "git", "reset", "--hard", f"HEAD~{number}",
+            cwd=PROJECT_ROOT,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        _, error = await process.communicate()
+        if process.returncode:
+            raise RuntimeError("Git rollback failed: " + error.decode(errors="replace"))
+        await self.restart_common(call)
 
     async def ubstop_func(self, call: Message | InlineCall):
         await utils.answer(

@@ -27,11 +27,6 @@ import shutil
 import sys
 from pathlib import Path
 
-from ._release_runner import bootstrap
-
-bootstrap()
-
-
 if "--no-git" in sys.argv:
     os.environ["ASTRALIX_NO_GIT"] = "1"
 

@@ -668,5 +668,5 @@ class CoreMod(loader.Module):
         await utils.answer(message, self.strings["cmc_done"].format(mod_arg))
 
     async def installationcmd(self, message: Message):
-        """| Installation guide for Linux Device"""
+        """| Installation guide for Linux"""
         await utils.answer(message, self.strings["linux_install"])

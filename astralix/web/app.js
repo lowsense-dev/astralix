@@ -45,9 +45,33 @@
   };
   let locale = navigator.language.startsWith("ru") ? "ru" : "en";
   let stage = "loading", csrf = "", busy = false, errorKey = "", retrySeconds = 0, qr = null, qrPolling = false;
-  let tunnel = null;
+  let secureMode = false, secureSendKey = null, secureReceiveKey = null, resumeKey = null;
+  const secureStorageKey = "astralix.login.encryption.v1";
   const stages = ["api", "phone", "code", "password"];
   const validStages = [...stages, "qr"];
+  const encode = (bytes) => btoa(String.fromCharCode(...bytes));
+  const decode = (value) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  async function setSecureKey(value) {
+    const bytes = decode(value.replace(/-/g, "+").replace(/_/g, "/") + "=");
+    if (bytes.length !== 32) throw {status: 401};
+    try {
+      const master = await crypto.subtle.importKey("raw", bytes, "HKDF", false, ["deriveKey"]);
+      const derive = (direction) => crypto.subtle.deriveKey({
+        name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32),
+        info: new TextEncoder().encode(`astralix-login-v1:${direction}`),
+      }, master, {name: "AES-GCM", length: 256}, false, ["encrypt", "decrypt"]);
+      [secureSendKey, secureReceiveKey] = await Promise.all([derive("request"), derive("response")]);
+    } finally {
+      bytes.fill(0);
+    }
+    secureMode = true;
+  }
+  function clearSecureKey() {
+    sessionStorage.removeItem(secureStorageKey);
+    secureSendKey = secureReceiveKey = null;
+    resumeKey = null;
+    secureMode = false;
+  }
   function drawQr(code) {
     if (!code || !Number.isInteger(code.size) || code.size < 21 || code.size > 177 || typeof code.data !== "string") return;
     const bytes = Uint8Array.from(atob(code.data), (char) => char.charCodeAt(0));
@@ -97,7 +121,38 @@
     if (focus && stages.includes(stage)) $(`${stage}-fields`).querySelector("input").focus();
   }
   async function api(path, data) {
-    if (tunnel) return tunnel.request(path, data);
+    if (secureMode) {
+      const nonce = crypto.getRandomValues(new Uint8Array(12));
+      const payload = new TextEncoder().encode(JSON.stringify(data === undefined ? {path} : {path, data}));
+      const encrypted = await crypto.subtle.encrypt(
+        {name: "AES-GCM", iv: nonce, additionalData: new TextEncoder().encode("astralix-login-v1")},
+        secureSendKey, payload,
+      );
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 55000);
+      try {
+        const response = await fetch("/api/secure", {
+          method: "POST", cache: "no-store", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({iv: encode(nonce), data: encode(new Uint8Array(encrypted))}),
+          signal: controller.signal,
+        });
+        if (!response.ok) throw {status: response.status};
+        const frame = await response.json();
+        const raw = await crypto.subtle.decrypt(
+          {name: "AES-GCM", iv: decode(frame.iv), additionalData: new TextEncoder().encode("astralix-login-v1")},
+          secureReceiveKey, decode(frame.data),
+        );
+        const reply = JSON.parse(new TextDecoder("utf-8", {fatal: true}).decode(raw));
+        if (!Number.isInteger(reply.status) || !reply.result || typeof reply.result !== "object") throw new Error();
+        if (reply.status >= 400) throw {status: reply.status, result: reply.result};
+        return reply.result;
+      } catch (error) {
+        if (Number.isInteger(error.status)) throw error;
+        throw {status: 503};
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 55000);
     try {
@@ -133,6 +188,7 @@
     try {
       const result = await api("/api/step", data);
       applyState(result);
+      if (stage === "done") clearSecureKey();
     } catch (error) { handleError(error); }
     finally {
       // No credentials in storage or in retained form fields after submission.
@@ -162,20 +218,40 @@
   async function init() {
     const params = new URLSearchParams(location.hash.slice(1));
     let key = params.get("key");
+    try {
+      if (key && params.get("secure") === "1") {
+        await setSecureKey(key);
+        resumeKey = key;
+        sessionStorage.setItem(secureStorageKey, JSON.stringify({
+          origin: location.origin, key, expires: Date.now() + 900000,
+        }));
+      } else if (!key) {
+        const saved = JSON.parse(sessionStorage.getItem(secureStorageKey) || "null");
+        if (saved?.origin === location.origin && Number.isFinite(saved.expires) && saved.expires > Date.now()) {
+          await setSecureKey(saved.key);
+          resumeKey = saved.key;
+        } else if (saved) clearSecureKey();
+      }
+    } catch {
+      clearSecureKey();
+      key = null;
+    }
     history.replaceState(null, "", location.pathname);
     render();
     try {
-      if (params.has("id") || location.hostname === "tunnel.astralix.cc") {
-        tunnel = await window.AstralixTunnel.connect(params);
-        params.delete("secret"); params.delete("ticket");
-      } else if (key) await api("/api/unlock", {key});
+      if (key) await api("/api/unlock", {key});
+      else if (secureMode && resumeKey) {
+        try { await api("/api/unlock", {key: resumeKey}); }
+        catch (error) { if (error.status !== 401) throw error; }
+      }
       key = null;
       const state = await api("/api/state");
       csrf = state.csrf;
       applyState(state);
       if (!validStages.includes(stage) && stage !== "done") stage = "locked";
+      if (stage === "done") clearSecureKey();
     } catch (error) { handleError(error); if (stage === "loading") stage = "locked"; }
-    finally { key = null; params.delete("secret"); params.delete("ticket"); params.delete("key"); render(true); if (stage === "qr") pollQr(); }
+    finally { key = null; params.delete("key"); render(true); if (stage === "qr") pollQr(); }
   }
   init();
 })();

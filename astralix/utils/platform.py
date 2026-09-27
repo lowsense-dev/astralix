@@ -49,7 +49,7 @@ def get_named_platform() -> str:
             return "Docker"
 
         case _:
-            return "Linux Device"
+            return "Linux"
 
 
 def get_named_platform_emoji() -> str:
