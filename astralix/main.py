@@ -31,7 +31,6 @@ import logging
 import os
 import random
 import shutil
-import signal
 import sqlite3
 import string
 import sys
@@ -834,7 +833,7 @@ class Astralix:
             print("CLI: restart with --no-web. Change later with --web-mode tunnel|local.")
             while mode not in {"tunnel", "local"}:
                 try:
-                    choice = (await asyncio.to_thread(input, "[1/2]: ")).strip()
+                    choice = input("[1/2]: ").strip()
                 except EOFError:
                     print("No interactive input. Pass --web-mode tunnel, --web-mode local or --no-web.")
                     return False
@@ -1297,16 +1296,6 @@ class Astralix:
 
     def main(self):
         """Main entrypoint"""
-        if sys.platform != "win32":
-            try:
-                self.loop.add_signal_handler(
-                    signal.SIGINT, lambda: asyncio.create_task(self._shutdown_handler())
-                )
-            except NotImplementedError:
-                logging.warning("Signal handlers not supported on this platform.")
-        else:
-            logging.info("Running on Windows — skipping signal handler.")
-
         try:
             self.loop.run_until_complete(self._main())
         except KeyboardInterrupt:
