@@ -512,6 +512,9 @@ class UpdaterMod(loader.Module):
                 current = repo.head.commit.hexsha
                 upcoming = repo.commit(f"origin/{channel}").hexsha
                 current_branch = repo.active_branch.name
+                changes = self._format_changelog(
+                    list(repo.iter_commits(f"{current}..{upcoming}"))
+                ) or self.strings["update_no_changes"]
             if current == upcoming and channel == current_branch:
                 await utils.answer(message, self.strings["update_current"])
                 return
@@ -526,7 +529,8 @@ class UpdaterMod(loader.Module):
                     message=message,
                     text=(
                         self.strings["update_confirm"].format(
-                            current, current[:8], upcoming, upcoming[:8]
+                            current, current[:8], upcoming, upcoming[:8],
+                            channel, changes,
                         )
                     ),
                     reply_markup=[
