@@ -1,6 +1,6 @@
 # astralix Userbot
 
-Репозиторий: [lowsense-dev/astralix на GitHub](https://github.com/lowsense-dev/astralix). Каналов и чатов проекта нет.
+Сайт: [astralix на GitHub Pages](https://lowsense-dev.github.io/astralix-site/) · репозиторий: [lowsense-dev/astralix на GitHub](https://github.com/lowsense-dev/astralix). Каналов и чатов проекта нет.
 
 Из каталога проекта, после установки Python 3.10+ и uv:
 
