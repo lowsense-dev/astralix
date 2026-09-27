@@ -33,6 +33,8 @@ class TunnelLogin(WebLogin):
         self.http = self.socket = self.reader = None
         self.sid = None
         self.receive_cipher = self.send_cipher = None
+        self.owner_token = self.resume_token = None
+        self.expected = 0
 
     async def start(self, port=None):
         self.http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))
@@ -47,17 +49,52 @@ class TunnelLogin(WebLogin):
         self.send_cipher = AESGCM(derive_key(secret, "response"))
         for value in (encoded, details["owner"], details["ticket"]):
             self.register_secret(value)
+        self.expires = time.monotonic() + TTL
+        self.owner_token = details["owner"]
+        self.resume_token = secrets.token_urlsafe(32)
+        self.register_secret(self.resume_token)
+        await self._connect()
+        self.reader = asyncio.create_task(self._keep_connected())
+        # Fragment secrets are not sent in the HTTP request or Referer.
+        return f"{ORIGIN}/#" + urlencode({"id": self.sid, "ticket": details["ticket"], "secret": encoded})
+
+    async def _connect(self):
         self.socket = await self.http.ws_connect(
             f"{ORIGIN}/v1/connect", heartbeat=25, max_msg_size=16384,
         )
-        await self.socket.send_json({"role": "owner", "id": self.sid, "token": details["owner"]})
-        hello = await self.socket.receive_json(timeout=15)
-        if hello != {"ready": True}:
+        await self.socket.send_json({
+            "role": "owner", "id": self.sid, "token": self.owner_token,
+            "protocol": 2, "resume": self.resume_token,
+        })
+        try:
+            hello = await self.socket.receive_json(timeout=15)
+        except (TypeError, ValueError):
+            raise ConnectionError("Tunnel handshake interrupted") from None
+        if not isinstance(hello, dict):
+            raise ConnectionError("Invalid tunnel handshake")
+        seq = hello.get("seq")
+        if hello.get("ready") is not True or type(seq) is not int or not self.expected <= seq <= 4096:
             raise ConnectionError("Tunnel service rejected the connection")
-        self.expires = time.monotonic() + TTL
-        self.reader = asyncio.create_task(self._receive())
-        # Fragment secrets are not sent in the HTTP request or Referer.
-        return f"{ORIGIN}/#" + urlencode({"id": self.sid, "ticket": details["ticket"], "secret": encoded})
+        self.expected = seq
+
+    async def _keep_connected(self):
+        delay = 1
+        while not self.done.is_set() and time.monotonic() < self.expires:
+            try:
+                if self.socket is None or self.socket.closed:
+                    await self._connect()
+                delay = 1
+                await self._receive()
+            except (aiohttp.ClientError, ConnectionError, asyncio.TimeoutError, OSError):
+                pass
+            finally:
+                if self.socket:
+                    await self.socket.close()
+            if not self.done.is_set():
+                await asyncio.sleep(min(delay, max(0, self.expires - time.monotonic())))
+                delay = min(delay * 2, 15)
+        if not self.done.is_set():
+            raise asyncio.TimeoutError()
 
     async def wait_completed(self):
         done = asyncio.create_task(self.done.wait())
@@ -70,21 +107,20 @@ class TunnelLogin(WebLogin):
             if self.reader in finished:
                 await self.reader
                 if not self.done.is_set():
-                    raise ConnectionError("Tunnel disconnected; restart to get a new login link")
+                    raise ConnectionError("Tunnel connection ended")
         finally:
             done.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await done
 
     async def _receive(self):
-        expected = 0
         async for message in self.socket:
             if message.type != aiohttp.WSMsgType.TEXT:
                 break
             try:
                 frame = json.loads(message.data)
                 seq = frame["seq"]
-                if type(seq) is not int or seq != expected or seq >= 128:
+                if type(seq) is not int or seq < self.expected or seq >= 4096:
                     raise ValueError("Invalid sequence")
                 nonce = seq.to_bytes(12, "big")
                 raw = self.receive_cipher.decrypt(
@@ -94,7 +130,7 @@ class TunnelLogin(WebLogin):
                 if len(raw) > 4096:
                     raise ValueError("Oversized request")
                 request = json.loads(raw)
-                expected += 1
+                self.expected = seq + 1
             except Exception:
                 raise ConnectionError("Tunnel authentication failed") from None
             try:
@@ -122,6 +158,9 @@ class TunnelLogin(WebLogin):
             await self.socket.send_json({"seq": seq, "data": base64.b64encode(encrypted).decode()})
 
     async def stop_server(self):
+        if self.socket and not self.socket.closed:
+            with contextlib.suppress(Exception):
+                await self.socket.send_json({"close": True})
         if self.reader:
             self.reader.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -134,3 +173,4 @@ class TunnelLogin(WebLogin):
             await self.http.close()
             self.http = None
         self.receive_cipher = self.send_cipher = None
+        self.owner_token = self.resume_token = None

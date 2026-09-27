@@ -192,7 +192,7 @@ class AstralixInfoMod(loader.Module):
             "user": getpass.getuser,
             "os": self._get_os_name,
             "kernel": lib_platform.release,
-            "htl_ver": lambda: astralixtl.__version__,
+            "atl_version": lambda: astralixtl.__version__,
             "git_status": utils.get_git_status,
             "cpu": self._get_cpu_info,
             "img": lambda: (
