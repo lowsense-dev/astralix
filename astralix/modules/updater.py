@@ -145,7 +145,7 @@ class UpdaterMod(loader.Module):
                     self._git_fetch_backoff_until - now,
                 )
 
-            current = repo.head.commit.hexsha
+            current = version.commit or repo.head.commit.hexsha
             latest = next(
                 repo.iter_commits(f"refs/astralix-updates/{channel}", max_count=1)
             ).hexsha
@@ -449,7 +449,7 @@ class UpdaterMod(loader.Module):
                 return
             if report["dirty"]:
                 raise RuntimeError(self.strings["release_dirty"])
-            if report["target"] == report["current"] and channel == report["branch"]:
+            if Updates.is_current(report, channel):
                 await utils.answer(message, self.strings["release_current"])
                 return
             if "-f" not in args and self.inline.init_complete:

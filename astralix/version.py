@@ -25,6 +25,7 @@ __version__ = (1, 1, 1)
 import os
 
 NO_GIT = os.environ.get("ASTRALIX_NO_GIT") == "1"
+commit = None
 if not NO_GIT:
     import git
 else:
@@ -39,5 +40,6 @@ else:
             path=os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         ) as repo:
             branch = repo.active_branch.name
+            commit = repo.head.commit.hexsha
     except Exception:
         branch = "master"

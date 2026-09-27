@@ -15,6 +15,7 @@ import sys
 import time
 from urllib.parse import urlsplit
 
+from . import version
 from ._dependencies import PROJECT_ROOT, _uv_command
 from ._release_runner import DATA_SCHEMA, PROTOCOL, atomic_bytes, atomic_json, event, locked
 
@@ -54,7 +55,8 @@ class Updates:
         url = urlsplit(origin)
         if url.scheme != "https" or not url.hostname or url.username or url.password or url.query or url.fragment:
             raise ValueError("Use an HTTPS Git URL without embedded credentials")
-        current = self.git("rev-parse", "HEAD")
+        checkout = self.git("rev-parse", "HEAD")
+        current = version.commit or checkout
         branch = self.git("branch", "--show-current")
         dirty = self.git("status", "--porcelain", "--untracked-files=no")
         self.git("fetch", "--no-tags", origin, f"+refs/heads/{channel}:refs/astralix-updates/{channel}")
@@ -69,9 +71,17 @@ class Updates:
                 and line[1:].lstrip().startswith(('"', 'name =', 'version =', 'requires-python ='))
             ]
             dependencies += "\n" + "\n".join(changes_to_packages)[:1400]
-        return {"current": current, "target": target, "channel": channel,
-                "branch": branch, "dirty": dirty, "changes": changes,
+        return {"current": current, "checkout": checkout, "target": target,
+                "channel": channel, "branch": branch,
+                "running_branch": version.branch, "dirty": dirty, "changes": changes,
                 "dependencies": dependencies}
+
+    @staticmethod
+    def is_current(report, channel):
+        return (
+            report["target"] == report["current"] == report["checkout"]
+            and channel == report["branch"] == report["running_branch"]
+        )
 
     def check(self, origin, channel):
         with locked(self.directory / "update.lock"):
@@ -104,10 +114,10 @@ class Updates:
             report = self._check(origin, channel)
             if report["dirty"]:
                 raise RuntimeError("The running checkout has local changes; commit or stash them first")
-            if report["target"] == report["current"] and report["branch"] == channel:
+            if self.is_current(report, channel):
                 return None
             if report["branch"] == channel:
-                self.git("merge-base", "--is-ancestor", report["current"], report["target"])
+                self.git("merge-base", "--is-ancestor", report["checkout"], report["target"])
             identifier = f"{int(time.time())}-{report['target'][:12]}-{secrets.token_hex(3)}"
             target = self.directory / "releases" / identifier
             target.parent.mkdir(mode=0o700, exist_ok=True)
@@ -140,7 +150,7 @@ class Updates:
                 self.run([release["python"], "-m", "compileall", "-q", "astralix"], target)
                 self.run([release["python"], "-c", "import astralixtl, cryptography; from astralix import main"], target,
                          env={"ASTRALIX_DATA_ROOT": str(target / ".preflight-data"), "PYTHONPATH": str(target)})
-                if self.git("rev-parse", "HEAD") != report["current"] or self.git("status", "--porcelain", "--untracked-files=no"):
+                if self.git("rev-parse", "HEAD") != report["checkout"] or self.git("status", "--porcelain", "--untracked-files=no"):
                     raise RuntimeError("The running checkout changed while the release was being prepared")
                 # No root checkout reset, no modification of its environment.
                 atomic_bytes(self.directory / "runner.py", Path(__file__).with_name("_release_runner.py").read_bytes())
