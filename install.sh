@@ -228,13 +228,13 @@ exec_quote() {
 
 set_service_unit() {
 	local name="${1##*/}"
-	if command -v systemd-escape >/dev/null 2>&1; then
-		name="$(systemd-escape -- "$name")"
-	else
-		case "$name" in
-			''|*[!a-zA-Z0-9_.:@-]*) fail "Cannot derive a valid systemd unit name from the installation directory." 5 ;;
-		esac
-	fi
+	case "$name" in
+		''|*[!a-zA-Z0-9_.:@-]*)
+			command -v systemd-escape >/dev/null 2>&1 \
+				|| fail "Cannot derive a valid systemd unit name from the installation directory." 5
+			name="$(systemd-escape -- "$name")"
+			;;
+	esac
 	SERVICE_UNIT="$name.service"
 }
 
