@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import errno
 import json
+import io
 import logging
 import os
 import time
@@ -147,9 +148,9 @@ class UpdaterMod(loader.Module):
 
             current = repo.head.commit.hexsha
             latest = next(
-                repo.iter_commits(f"refs/astralix-updates/{channel}", max_count=1)
+                repo.iter_commits(f"refs/astralix-releases/{channel}", max_count=1)
             ).hexsha
-            commits = [*repo.iter_commits(f"HEAD..refs/astralix-updates/{channel}")]
+            commits = [*repo.iter_commits(f"HEAD..refs/astralix-releases/{channel}")]
 
             return (
                 current,
@@ -172,7 +173,7 @@ class UpdaterMod(loader.Module):
         try:
             with git.Repo() as repo:
                 return next(
-                    repo.iter_commits(f"refs/astralix-updates/{self._channel()}", max_count=1)
+                    repo.iter_commits(f"refs/astralix-releases/{self._channel()}", max_count=1)
                 ).hexsha
         except Exception:
             return ""
@@ -248,7 +249,7 @@ class UpdaterMod(loader.Module):
         with contextlib.suppress(Exception):
             await call.delete()
 
-        await self.invoke("update", "-f", peer=self.inline.bot_username)
+        await self.invoke("update", "", peer=self.inline.bot_username)
 
     @loader.command()
     async def changelog(self, message: Message):
@@ -417,24 +418,15 @@ class UpdaterMod(loader.Module):
 
     @loader.command()
     async def update(self, message: Message):
-        """Check, prepare or switch releases: --check, --channel main|dev, --history."""
+        """Check for updates and confirm installation. Use -f to skip confirmation."""
         if not self._git_available:
             await utils.answer(message, "<b>Git disabled via --no-git.</b>")
             return
         args = utils.get_args_raw(message).split()
         channel = self._channel()
         try:
-            if "--channel" in args:
-                index = args.index("--channel")
-                channel = args[index + 1]
-                del args[index:index + 2]
-            if channel not in {"main", "dev"} or any(
-                arg not in {"--check", "--history", "-f"} for arg in args
-            ):
+            if channel not in {"main", "dev"} or args not in ([], ["-f"]):
                 raise ValueError(self.strings["update_usage"])
-            if "--history" in args:
-                await self.updatehistory(message)
-                return
             report = await asyncio.to_thread(
                 Updates().check, self.config["GIT_ORIGIN_URL"], channel
             )
@@ -444,36 +436,52 @@ class UpdaterMod(loader.Module):
                 utils.escape_html(report["dependencies"] or self.strings["release_no_changes"]),
                 utils.escape_html(report["dirty"] or self.strings["release_clean"]),
             )
-            if "--check" in args:
-                await utils.answer(message, text)
-                return
-            if report["dirty"]:
-                raise RuntimeError(self.strings["release_dirty"])
             if report["target"] == report["current"] and channel == report["branch"]:
                 await utils.answer(message, self.strings["release_current"])
                 return
-            if "-f" not in args and self.inline.init_complete:
-                if await self.inline.form(message=message, text=text + "\n\n" + self.strings["release_confirm"],
+            if report["dirty"]:
+                raise RuntimeError(self.strings["release_dirty"])
+            if "-f" not in args:
+                if self.inline.init_complete and await self.inline.form(message=message, text=text + "\n\n" + self.strings["release_confirm"],
                     reply_markup=[
                         {"text": self.strings["btn_update"], "callback": self.inline_update,
-                         "args": (False, channel), "style": "primary"},
+                         "args": (False, channel, report["target"]), "style": "primary"},
                         {"text": self.strings["cancel"], "action": "close"},
                     ]):
                     return
-            await self.inline_update(message, channel=channel)
+                await utils.answer(message, text + "\n\n" + self.strings["release_confirm_cli"])
+                return
+            await self.inline_update(message, channel=channel, expected=report["target"])
         except Exception as error:
             await self._show_error(message, error)
 
-    async def inline_update(self, msg_obj: InlineCall | Message, hard=False, channel=None):
+    async def inline_update(self, msg_obj: InlineCall | Message, hard=False, channel=None, expected=None):
         if not self._git_available:
             return
         manager = Updates()
         prepared = False
         try:
             msg_obj = await utils.answer(msg_obj, self.strings["release_preparing"])
+            from .._module_inventory import requirements_for_sources
+            from .._dependencies import PROJECT_ROOT
+            sources = [item["source"] for client in self.allclients
+                       for item in client.loader.lookup("LoaderMod")._installed_sources().values()
+                       if item.get("source")]
+            requirements = await asyncio.to_thread(
+                requirements_for_sources, sources, (PROJECT_ROOT / "uv.lock").read_text()
+            )
+            requirements = sorted(set(requirements).union(*(
+                client.loader.lookup('LoaderMod').get('dependency_requests', []) for client in self.allclients
+            )))
+            health_modules = {str(client.tg_id): sorted(
+                mod.__class__.__name__ for mod in client.loader.modules
+                if getattr(mod, "__ready__", False)
+            ) for client in self.allclients}
             release = await asyncio.to_thread(
                 manager.prepare, self.config["GIT_ORIGIN_URL"], channel or self._channel(),
                 main.BASE_DIR, self._accounts(), self.config["startup_timeout"],
+                expected=expected,
+                module_requirements=requirements, health_modules=health_modules,
             )
             if release is None:
                 await utils.answer(msg_obj, self.strings["release_current"])
@@ -484,6 +492,15 @@ class UpdaterMod(loader.Module):
             if prepared:
                 await asyncio.to_thread(manager.cancel_pending)
             await self._show_error(msg_obj, error)
+
+    @loader.command()
+    async def diagnostics(self, message: Message):
+        """Send a report without account credentials, sessions or logs to Saved Messages."""
+        from .._diagnostics import report
+        document = io.BytesIO(json.dumps(report(Updates().read(), self.allmodules.modules), indent=2).encode())
+        document.name = 'astralix-diagnostics.json'
+        await self._client.send_file('me', document, caption=self.strings['diagnostics_saved'])
+        await utils.answer(message, self.strings['diagnostics_saved'])
 
     @loader.command()
     async def updatehistory(self, message: Message):

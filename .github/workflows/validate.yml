@@ -1,0 +1,30 @@
+name: Validate release
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.17'
+          python-version: '3.12'
+      - run: uv sync --locked
+      - name: Validate translations
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: uv run --no-sync python tools/check_langpacks.py --base "${BASE_SHA:-HEAD^}"
+      - run: uv run --no-sync python -m unittest discover -s tests
+      - run: uv run --no-sync python -m compileall -q astralix
+      - run: uv pip check

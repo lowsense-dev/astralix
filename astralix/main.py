@@ -1221,16 +1221,23 @@ class Astralix:
         await modules.send_ready()
 
         from ._release_runner import mark_ready
-        mark_ready(client.tg_id, [
-            mod.__class__.__name__ for mod in modules.modules
-            if getattr(mod, "__ready__", False)
-            and mod.__origin__.startswith("<core")
-        ])
+        async def heartbeat():
+            while True:
+                mark_ready(client.tg_id, [
+                    mod.__class__.__name__ for mod in modules.modules
+                    if getattr(mod, "__ready__", False)
+                ], connected=client.is_connected(), dispatcher=bool(client.dispatcher))
+                await asyncio.sleep(3)
+        health_task = asyncio.create_task(heartbeat())
 
-        if first:
-            await self._badge(client)
-
-        await client.run_until_disconnected()
+        try:
+            if first:
+                await self._badge(client)
+            await client.run_until_disconnected()
+        finally:
+            health_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await health_task
 
     @staticmethod
     def _loop_exception_handler(_, context: dict):

@@ -23,6 +23,7 @@ dependencies = [
     "ruamel.yaml==0.17.21",
     "orjson",
     "Pillow",
+    "tomli>=2.0.1; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]

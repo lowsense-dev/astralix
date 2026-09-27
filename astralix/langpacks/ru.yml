@@ -430,7 +430,9 @@ test:
 updater:
   startup_timeout_doc: "Сколько секунд ждать готовности всех аккаунтов и основных модулей до автоматического отката."
   release_error: "<b>Не удалось выполнить операцию</b>\n<code>{}</code>"
-  update_usage: "Использование: update [--check] [--channel main|dev] [-f] или update --history"
+  update_usage: "Использование: update или update -f без подтверждения."
+  release_confirm_cli: "Чтобы установить обновление, выполни update -f."
+  diagnostics_saved: "Диагностический отчёт отправлен в Избранное. В нём нет данных для входа, сессий и логов."
   rollback_usage: "Использование: rollback [-f] [--restore-data]. Откат к предыдущему рабочему релизу, а не на число коммитов."
   release_check: "<b>astralix · проверка обновления</b>\nКанал: <code>{}</code>\nСейчас: <code>{}</code>\nДоступно: <code>{}</code>\n\n<b>Коммиты</b>\n<pre>{}</pre>\n<b>Зависимости</b>\n<pre>{}</pre>\n<b>Локальные правки</b>\n<pre>{}</pre>"
   release_no_changes: "Без изменений"
@@ -487,7 +489,8 @@ updater:
   changelog: '<b>Список изменений последнего масштабного обновления:</b><blockquote expandable>{}</blockquote>'
   _cmd_doc_restart: "Перезагружает юзербот"
   _cmd_doc_source: "Показать ссылку на исходный код проекта"
-  _cmd_doc_update: "[--check] [--channel main|dev] [--history] [-f] — подготовка и переключение релиза"
+  _cmd_doc_update: "Проверить обновления и подтвердить установку; -f пропускает подтверждение"
+  _cmd_doc_diagnostics: "Сохранить в Избранное диагностический отчёт без данных для входа и сессий"
   _cmd_doc_rollback: "[-f] [--restore-data] — предыдущий код и окружение; опционально восстановить конфиги"
 
   name: Updater
@@ -605,6 +608,7 @@ loader:
   installed_status: "Модуль установлен"
   loaded_placeholders: "Плейсхолдеры"
   module_update_prompt: "<b>Модуль {} был обновлён. Установить?</b>"
+  module_update_hash: "\n\n<b>SHA-256</b>\nБыло: <code>{}</code>\nСтало: <code>{}</code>"
   module_update_yes: "Да"
   module_update_no: "Нет"
   module_update_installed: "<b>Обновление модуля установлено.</b>"

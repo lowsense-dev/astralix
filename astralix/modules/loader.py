@@ -55,6 +55,7 @@ from .. import loader, main, utils
 from .._dependencies import dependency_installation, install_command
 from .._internal import fetch_text, private_write, redact
 from .. import _module_archive
+from .. import _module_inventory
 from .._local_storage import RemoteStorage
 from ..inline.types import InlineCall
 from ..types import CoreOverwriteError, CoreUnloadError
@@ -223,6 +224,12 @@ class LoaderMod(loader.Module):
             # An explicit URL installation replaces a previous .lm copy only
             # once the new source and its registry entry have been saved.
             self.allmodules.module_path(name).unlink(missing_ok=True)
+        inventory = dict(self.get("module_inventory", {}))
+        inventory[name] = _module_inventory.record(
+            inventory.get(name), instance.__source__, instance.__origin__,
+            getattr(instance, "__version__", "unknown"),
+        )
+        self.set("module_inventory", inventory)
 
     async def _discard_failed_module(self, instance):
         """Clean runtime resources without uninstalling the saved module."""
@@ -730,6 +737,7 @@ class LoaderMod(loader.Module):
     async def install_requirements(self, requirements: list):
         utils.ensure_child_watcher()
         try:
+            requirements = _module_inventory.validate_requirements(requirements)
             cmd = install_command(*requirements)
             pip = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -751,6 +759,7 @@ class LoaderMod(loader.Module):
             )
             return False
 
+        self.set('dependency_requests', sorted(set(self.get('dependency_requests', [])) | set(requirements)))
         return True
 
     async def install_packages(self, packages: list):
@@ -1920,7 +1929,9 @@ class LoaderMod(loader.Module):
                         status = self.strings["modules_safe_mode"]
                     else:
                         status = self.strings["modules_not_running"]
-                    rows.append(f"{name} — {status}")
+                    record = self.get("module_inventory", {}).get(name, {})
+                    details = f" · {record.get('version', 'unknown')} · SHA256 {record.get('sha256', 'unknown')}"
+                    rows.append(f"{name} — {status}{details}")
                 text = "\n".join(rows) or self.strings["modules_empty"]
                 if len(text) > 3000:
                     document = io.BytesIO(text.encode())
@@ -2083,9 +2094,14 @@ class LoaderMod(loader.Module):
                 },
             ],
         ]
+        old_hash = '—'
+        with contextlib.suppress(OSError):
+            old_hash = hashlib.sha256(Path(self._module_cache_path(url)).read_bytes()).hexdigest()
+        new_hash = hashlib.sha256(doc.encode()).hexdigest()
         self.inline._units[unit_id] = {
             "type": "form",
-            "text": self.strings["module_update_prompt"].format(name),
+            "text": self.strings["module_update_prompt"].format(name)
+                    + self.strings["module_update_hash"].format(old_hash, new_hash),
             "buttons": buttons,
             "caller": None,
             "chat": int(self.tg_id),

@@ -17,6 +17,9 @@ from urllib.parse import urlsplit
 
 from ._dependencies import PROJECT_ROOT, _uv_command
 from ._release_runner import DATA_SCHEMA, PROTOCOL, atomic_bytes, atomic_json, event, locked
+from ._release_integrity import verify_files
+from ._release_trust import verify_manifest
+from ._internal import redact
 
 
 class Updates:
@@ -39,8 +42,8 @@ class Updates:
             fd = os.open(log, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
             with os.fdopen(fd, "w") as output:
                 output.write(
-                    f"$ {shlex.join(map(str, arguments))}\n"
-                    f"exit {result.returncode}\n{result.stdout}{result.stderr}\n"
+                    redact(f"$ {shlex.join(map(str, arguments))}\n"
+                           f"exit {result.returncode}\n{result.stdout}{result.stderr}\n")
                 )
             raise RuntimeError(f"{Path(str(arguments[0])).name} failed; details: {log}")
         return result.stdout.strip()
@@ -58,7 +61,22 @@ class Updates:
         branch = self.git("branch", "--show-current")
         dirty = self.git("status", "--porcelain", "--untracked-files=no")
         self.git("fetch", "--no-tags", origin, f"+refs/heads/{channel}:refs/astralix-updates/{channel}")
-        target = self.git("rev-parse", f"refs/astralix-updates/{channel}")
+        tip = self.git("rev-parse", f"refs/astralix-updates/{channel}")
+        self.git("fetch", "--no-tags", origin,
+                 "+refs/heads/release-metadata:refs/astralix-updates/metadata")
+        reference = f"refs/astralix-updates/metadata:{channel}.json"
+        if int(self.git("cat-file", "-s", reference)) > 4 * 1024 * 1024:
+            raise ValueError("Release metadata is too large")
+        raw = self.git("show", reference)
+        target = json.loads(raw)["signed"]["commit"]
+        seen_path = self.directory / "trusted-releases.json"
+        seen = json.loads(seen_path.read_text()) if seen_path.exists() else {}
+        manifest = verify_manifest(raw, channel, target, seen=seen.get(channel))
+        # A newer unreviewed branch commit is not a published release.
+        self.git("merge-base", "--is-ancestor", target, tip)
+        seen[channel] = {"sequence": manifest["sequence"], "commit": target}
+        atomic_json(seen_path, seen)
+        self.git("update-ref", f"refs/astralix-releases/{channel}", target)
         changes = self.git("log", "--format=%h %s", "-12", f"{current}..{target}")
         dependencies = self.git("diff", "--stat", current, target, "--", "pyproject.toml", "uv.lock")
         if dependencies:
@@ -71,7 +89,7 @@ class Updates:
             dependencies += "\n" + "\n".join(changes_to_packages)[:1400]
         return {"current": current, "target": target, "channel": channel,
                 "branch": branch, "dirty": dirty, "changes": changes,
-                "dependencies": dependencies}
+                "dependencies": dependencies, "manifest": manifest}
 
     def check(self, origin, channel):
         with locked(self.directory / "update.lock"):
@@ -96,12 +114,15 @@ class Updates:
         if values != {"PROTOCOL": PROTOCOL, "DATA_SCHEMA": DATA_SCHEMA}:
             raise RuntimeError("Target release has an incompatible update protocol or data schema")
 
-    def prepare(self, origin, channel, data_root, accounts, timeout=180):
+    def prepare(self, origin, channel, data_root, accounts, timeout=180, expected=None,
+                module_requirements=(), health_modules=None):
         with locked(self.directory / "update.lock"):
             state = self.read() or self._initial_state(data_root)
             if state.get("pending"):
                 raise RuntimeError("A release switch is already pending")
             report = self._check(origin, channel)
+            if expected is not None and report["target"] != expected:
+                raise RuntimeError("Release changed since confirmation. Run update again.")
             if report["dirty"]:
                 raise RuntimeError("The running checkout has local changes; commit or stash them first")
             if report["target"] == report["current"] and report["branch"] == channel:
@@ -113,44 +134,51 @@ class Updates:
             target.parent.mkdir(mode=0o700, exist_ok=True)
             release = {"id": identifier, "path": str(target),
                        "python": str(target / ".venv/bin/python"),
-                       "commit": report["target"], "channel": channel}
+                       "commit": report["target"], "channel": channel,
+                       "files": report["manifest"]["files"], "health_protocol": 2}
             try:
                 # Independent object store; no worktree or hardlink dependencies.
                 self.git("clone", "--no-hardlinks", "--no-checkout", str(PROJECT_ROOT), str(target))
                 self.git("remote", "set-url", "origin", origin, cwd=target)
                 self.git("checkout", "-B", channel, report["target"], cwd=target)
+                verify_files(target, release["files"])
                 self._protocol(target / "astralix/_release_runner.py")
                 uv = _uv_command()
                 self.run([*uv, "venv", "--python", sys.executable, target / ".venv"], target)
-                # Preserve module dependencies, then let the project's lockfile
-                # choose core versions. Conflicts fail before stopping the bot.
-                freeze = self.run([*uv, "pip", "freeze", "--python", sys.executable], PROJECT_ROOT)
-                requirements = target / ".module-environment.txt"
-                requirements.write_text(freeze + "\n")
-                requirements.chmod(0o600)
-                try:
-                    if freeze:
-                        self.run([*uv, "pip", "install", "--python", release["python"], "-r", requirements], target, timeout=900)
-                    self.run([*uv, "sync", "--locked", "--inexact", "--project", target,
-                              "--python", release["python"]], target, timeout=900,
-                             env={"UV_PROJECT_ENVIRONMENT": str(target / ".venv")})
-                    self.run([*uv, "pip", "check", "--python", release["python"]], target)
-                finally:
-                    requirements.unlink(missing_ok=True)
+                self.run([*uv, "sync", "--locked", "--project", target,
+                          "--python", release["python"]], target, timeout=900,
+                         env={"UV_PROJECT_ENVIRONMENT": str(target / ".venv")})
+                if module_requirements:
+                    from ._module_inventory import validate_requirements
+                    requirements = target / ".module-requirements.in"
+                    constraints = target / ".core-constraints.txt"
+                    resolved = target / ".module-requirements.lock"
+                    atomic_bytes(requirements, ('\n'.join(validate_requirements(module_requirements)) + '\n').encode())
+                    atomic_bytes(constraints, self.run([*uv, "pip", "freeze", "--python", release["python"]], target).encode())
+                    self.run([*uv, "pip", "compile", requirements, "--constraint", constraints,
+                              "--generate-hashes", "--python", release["python"], "--only-binary", ":all:",
+                              "--output-file", resolved], target, timeout=900)
+                    self.run([*uv, "pip", "install", "--python", release["python"],
+                              "--require-hashes", "--only-binary", ":all:", "-r", resolved], target, timeout=900)
+                self.run([*uv, "pip", "check", "--python", release["python"]], target)
                 self.run([release["python"], "-m", "compileall", "-q", "astralix"], target)
                 self.run([release["python"], "-c", "import astralixtl, cryptography; from astralix import main"], target,
                          env={"ASTRALIX_DATA_ROOT": str(target / ".preflight-data"), "PYTHONPATH": str(target)})
+                verify_files(target, release["files"])
                 if self.git("rev-parse", "HEAD") != report["current"] or self.git("status", "--porcelain", "--untracked-files=no"):
                     raise RuntimeError("The running checkout changed while the release was being prepared")
                 # No root checkout reset, no modification of its environment.
+                atomic_bytes(self.directory / "_release_integrity.py", Path(__file__).with_name("_release_integrity.py").read_bytes())
                 atomic_bytes(self.directory / "runner.py", Path(__file__).with_name("_release_runner.py").read_bytes())
                 state["pending"] = self._pending(release, accounts, timeout)
+                state["pending"]["modules"] = health_modules or {}
                 event(state, "prepared", release)
                 atomic_json(self.state_path, state)
                 return release
             except Exception:
                 event(state, "prepare_failed", release)
                 # Keep a usable launcher even when the very first build fails.
+                atomic_bytes(self.directory / "_release_integrity.py", Path(__file__).with_name("_release_integrity.py").read_bytes())
                 atomic_bytes(self.directory / "runner.py", Path(__file__).with_name("_release_runner.py").read_bytes())
                 atomic_json(self.state_path, state)
                 shutil.rmtree(target, ignore_errors=True)

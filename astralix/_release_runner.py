@@ -15,6 +15,10 @@ import subprocess
 import sys
 import tempfile
 import time
+try:
+    from ._release_integrity import verify_files, fsync_directory
+except ImportError:
+    from _release_integrity import verify_files, fsync_directory
 
 PROTOCOL = 1
 DATA_SCHEMA = 1
@@ -34,6 +38,7 @@ def atomic_bytes(path, value):
             file.flush()
             os.fsync(file.fileno())
         os.replace(temporary, path)
+        fsync_directory(path.parent)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -69,12 +74,13 @@ def bootstrap():
         os.execv(sys.executable, [sys.executable, str(directory / "runner.py"), str(root), *sys.argv[1:]])
 
 
-def mark_ready(account, modules):
+def mark_ready(account, modules, connected=True, dispatcher=True):
     directory = os.environ.get("ASTRALIX_HEALTH_DIR")
     token = os.environ.get("ASTRALIX_HEALTH_TOKEN")
     if directory and token:
         atomic_json(Path(directory) / f"{int(account)}.json", {
-            "token": token, "core": sorted(modules),
+            "token": token, "core": sorted(modules), "time": time.time(),
+            "connected": bool(connected), "dispatcher": bool(dispatcher),
         })
 
 
@@ -83,8 +89,11 @@ def snapshot_configs(directory, data_root, identifier):
     dest.mkdir(parents=True, mode=0o700, exist_ok=False)
     for path in data_root.glob("config*.json"):
         if path.is_file() and not path.is_symlink():
-            shutil.copyfile(path, dest / path.name)
-            (dest / path.name).chmod(0o600)
+            # Source processes are stopped before the supervisor takes a snapshot.
+            value = path.read_bytes()
+            json.loads(value)
+            atomic_bytes(dest / path.name, value)
+    fsync_directory(dest.parent)
     return str(dest)
 
 
@@ -138,6 +147,17 @@ def supervise(root, arguments):
                     atomic_json(state_path, state)
                 pending = None
             release = pending["target"] if pending else state["active"]
+            if release.get("files"):
+                try:
+                    verify_files(release["path"], release["files"])
+                except (ValueError, OSError) as error:
+                    if not pending:
+                        raise RuntimeError("Active release integrity check failed; refusing to execute it") from error
+                    with locked(directory / "update.lock", blocking=True):
+                        event(state, "failed", release, reason="release integrity check failed")
+                        state["pending"] = None
+                        atomic_json(state_path, state)
+                    continue
             if pending:
                 with locked(directory / "update.lock", blocking=True):
                     pending["snapshot"] = snapshot_configs(
@@ -176,9 +196,17 @@ def supervise(root, arguments):
                 elif not argument.startswith("--data-root="):
                     child_args.append(argument)
             try:
+                parent_pid = os.getpid()
+                def die_with_parent():
+                    if sys.platform == 'linux':
+                        import ctypes
+                        if ctypes.CDLL(None).prctl(1, signal.SIGKILL, 0, 0, 0) != 0:
+                            os._exit(1)
+                        if os.getppid() != parent_pid:
+                            os._exit(1)
                 child = subprocess.Popen(
                     [release["python"], "-m", "astralix", *child_args, "--data-root", state["data_root"]],
-                    cwd=release["path"], env=environment,
+                    cwd=release["path"], env=environment, preexec_fn=die_with_parent,
                 )
             except OSError as error:
                 if not pending:
@@ -194,20 +222,34 @@ def supervise(root, arguments):
             deadline = time.monotonic() + (pending["timeout"] if pending else 0)
             failure = None
             healthy_since = None
+            health_reason = "startup incomplete"
             while child.poll() is None and not stopping:
                 if pending:
                     healthy = True
                     for account in pending["accounts"]:
                         try:
                             ready = json.loads((health / f"{account}.json").read_text())
-                            healthy &= ready["token"] == token and set(pending["core"]) <= set(ready["core"])
+                            expected = set(pending.get("modules", {}).get(str(account), pending["core"]))
+                            fresh = (0 <= time.time() - ready.get("time", 0) < 15
+                                     and ready.get("connected", False) and ready.get("dispatcher", False))
+                            if ready["token"] != token or time.time() - ready.get("time", 0) >= 15:
+                                health_reason = "heartbeat missing or event loop stalled"
+                            elif not ready.get("connected", False):
+                                health_reason = "Telegram connection unavailable"
+                            elif not expected <= set(ready["core"]):
+                                health_reason = "previously working modules did not become ready"
+                            elif not ready.get("dispatcher", False):
+                                health_reason = "dispatcher unavailable"
+                            healthy &= (ready["token"] == token
+                                        and expected <= set(ready["core"])
+                                        and (fresh or release.get("health_protocol", 1) < 2))
                         except (OSError, ValueError, KeyError):
                             healthy = False
                     if healthy and pending["accounts"]:
                         healthy_since = healthy_since or time.monotonic()
                     else:
                         healthy_since = None
-                    if healthy_since and time.monotonic() - healthy_since >= 5:
+                    if healthy_since and time.monotonic() - healthy_since >= 20:
                         with locked(directory / "update.lock", blocking=True):
                             state["previous"] = {**state["active"], "snapshot": pending["snapshot"]}
                             state["active"] = release
@@ -216,7 +258,7 @@ def supervise(root, arguments):
                             atomic_json(state_path, state)
                         pending = None
                     elif time.monotonic() >= deadline:
-                        failure = "startup timeout"
+                        failure = "startup timeout: " + health_reason
                         break
                 time.sleep(0.25)
 
