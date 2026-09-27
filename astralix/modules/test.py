@@ -96,7 +96,7 @@ class TestMod(loader.Module):
             ),
             loader.ConfigValue(
                 "custom_message",
-                "",
+                None,
                 lambda: (
                     self.strings["configping"]
                     + (
@@ -108,7 +108,9 @@ class TestMod(loader.Module):
                         else ""
                     )
                 ),
-                validator=loader.validators.String(),
+                validator=loader.validators.Union(
+                    loader.validators.String(), loader.validators.NoneType()
+                ),
             ),
             loader.ConfigValue(
                 "hint",

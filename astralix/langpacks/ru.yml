@@ -301,7 +301,7 @@ settings:
   aliases_cleared: "<b>Все алиасы удалены</b>."
   no_alias: "<b>Алиас</b> <code>{}</code> <b>не существует</b>"
   db_cleared: "<b>База очищена</b>"
-  astralix: "✨ <b>{0}</b> <code>{1}.{2}.{3}</code>\n<i>Твой Telegram. На твоей орбите.</i>\n\n<b>Сборка</b>  {4}\n<b>astralix-tl</b>  <code>{5}</code>\n\n<a href=\"https://git.astralix.cc\">Исходный код ↗</a>"
+  astralix: "<blockquote><b>┌ [ {0} Userbot ]</b>\n<b>└ [ Версия ] :</b> {1}.{2}.{3}</blockquote>\n<blockquote expandable><b>┌ [ Коммит ] :</b> {4}\n<b>└ [ astralix-tl ] :</b> {5}</blockquote>\n<blockquote><b>└ [ Исходный код ] :</b> <a href=\"https://git.astralix.cc\">git.astralix.cc</a></blockquote>"
   rich_astralix_message: "{img}<h1>astralix</h1><p><code>{version}</code> · Твой Telegram. На твоей орбите.</p><hr><p><b>Сборка</b> {build}<br><b>astralix-tl</b> <code>{htl_version}</code><br><b>Telegram API</b> <code>{layer}</code></p><p><a href=\"https://git.astralix.cc\">Исходный код ↗</a></p>"
   _cfg_rich_mode: "Показывать astralix как Rich-сообщение."
   _cls_doc: "Управление базовыми настройками юзербота"
@@ -395,8 +395,8 @@ inline_stuff:
   _cls_doc: Настройка inline-бота
   _cmd_doc_ch_bot_token: <token> - Изменить токен inline-бота
 test:
-  rich_ping_message: "{img}<h1>Пинг</h1><p><code>{ping} мс</code> · Время отклика</p><hr><p><b>Время работы</b> {uptime}<br><b>Устройство</b> {platform}</p>"
-  ping_message: "✨ <b>Пинг</b>  <code>{ping} мс</code>\n<b>Время работы</b>  {uptime}"
+  rich_ping_message: "{img}<blockquote><b>┌ [ Пинг ] :</b> {ping} мс<br><b>└ [ Время работы ] :</b> {uptime}</blockquote>"
+  ping_message: "<blockquote><b>┌ [ Пинг ] :</b> {ping} мс\n<b>└ [ Время работы ] :</b> {uptime}</blockquote>"
   set_loglevel: "<b>Укажи уровень логов числом или строкой</b>"
   no_logs: "<b>У тебя нет логов уровня</b> <code>{}</code><b>.</b>"
   configping: "Ваш кастомный текст. Вы можете использовать плейсхолдеры: {ping} - Это ваш пинг, {uptime} - Это ваш аптайм, {ping_hint} - подсказка. Вы можете использовать плейсхолдер {hostname} если вам нужен hostname вашего сервера, {img} - картинка баннера (только в rich-режиме)"
@@ -556,8 +556,8 @@ help:
   name: Help
 astralix_info:
   missing_placeholder: "Отсутствует плейсхолдер {placeholder}"
-  info_message: "✨ <b>astralix</b>  {version}\n{me}\n\n<b>Время работы</b>  {uptime}\n<b>Пинг</b>  <code>{ping} мс</code>\n<b>Префикс</b>  {prefix} · <b>Ветка</b>  <code>{branch}</code>\n\n<blockquote expandable><b>Система</b>\n{platform} · {os}\nPython {python_ver} · astralix-tl {atl_version}\nCPU {cpu_usage}% · RAM {ram_usage}\n\n<b>Обновления</b>  {upd}</blockquote>"
-  rich_info_message: "{img}<h1>astralix</h1><p>{me} · {version}</p><hr><p><b>Время работы</b> {uptime}<br><b>Пинг</b> <code>{ping} мс</code><br><b>Префикс</b> {prefix} · <b>Ветка</b> <code>{branch}</code></p><details><summary>Система</summary><p>{platform} · {os}</p><p>Python {python_ver} · astralix-tl {atl_version}<br>CPU {cpu_usage}% · RAM {ram_usage}</p><p><b>Обновления</b> {upd}</p></details>"
+  info_message: "<blockquote><b>┌ [ Владелец ] :</b> {me}\n<b>└ [ astralix Userbot ]</b></blockquote>\n<blockquote expandable><b>┌ [ Загрузка CPU ] :</b> {cpu_usage}%\n<b>├ [ Использование RAM ] :</b> {ram_usage}\n<b>└ [ ОС ] :</b> {os}</blockquote>\n<blockquote expandable><b>┌ [ Версия ] :</b> {version}\n<b>├ [ Коммит ] :</b> {build}\n<b>└ [ Время работы ] :</b> {uptime}</blockquote>"
+  rich_info_message: "{img}<blockquote><b>┌ [ Владелец ] :</b> {me}<br><b>└ [ astralix Userbot ]</b></blockquote><blockquote expandable><b>┌ [ Загрузка CPU ] :</b> {cpu_usage}%<br><b>├ [ Использование RAM ] :</b> {ram_usage}<br><b>└ [ ОС ] :</b> {os}</blockquote><blockquote expandable><b>┌ [ Версия ] :</b> {version}<br><b>├ [ Коммит ] :</b> {build}<br><b>└ [ Время работы ] :</b> {uptime}</blockquote>"
   non_detectable: "Недоступно"
   ping_emoji: "Эмодзи для пинга в инфо"
   send_info: "Отправить информацию о юзерботе"

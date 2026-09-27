@@ -343,7 +343,7 @@ settings:
   aliases_cleared: "<b>All aliases removed</b>."
   no_alias: "<b>Alias</b> <code>{}</code> <b>does not exist</b>"
   db_cleared: "<b>Database cleared</b>"
-  astralix: "✨ <b>{0}</b> <code>{1}.{2}.{3}</code>\n<i>Your Telegram. In your own orbit.</i>\n\n<b>Build</b>  {4}\n<b>astralix-tl</b>  <code>{5}</code>\n\n<a href=\"https://git.astralix.cc\">Source code ↗</a>"
+  astralix: "<blockquote><b>┌ [ {0} Userbot ]</b>\n<b>└ [ Version ] :</b> {1}.{2}.{3}</blockquote>\n<blockquote expandable><b>┌ [ Commit ] :</b> {4}\n<b>└ [ astralix-tl ] :</b> {5}</blockquote>\n<blockquote><b>└ [ Source ] :</b> <a href=\"https://git.astralix.cc\">git.astralix.cc</a></blockquote>"
   rich_astralix_message: "{img}<h1>astralix</h1><p><code>{version}</code> · Your Telegram. In your own orbit.</p><hr><p><b>Build</b> {build}<br><b>astralix-tl</b> <code>{htl_version}</code><br><b>Telegram API</b> <code>{layer}</code></p><p><a href=\"https://git.astralix.cc\">Source code ↗</a></p>"
   confirm_cleardb: "<b>Are you sure, that you want to clear database?</b>"
   cleardb_confirm: "Clear database"
@@ -437,8 +437,8 @@ inline_stuff:
 
   _cmd_doc_ch_bot_token: <token> - Change inline bot token
 test:
-  rich_ping_message: "{img}<h1>Ping</h1><p><code>{ping} ms</code> · Response time</p><hr><p><b>Uptime</b> {uptime}<br><b>Device</b> {platform}</p>"
-  ping_message: "✨ <b>Ping</b>  <code>{ping} ms</code>\n<b>Uptime</b>  {uptime}"
+  rich_ping_message: "{img}<blockquote><b>┌ [ Ping ] :</b> {ping} ms<br><b>└ [ Uptime ] :</b> {uptime}</blockquote>"
+  ping_message: "<blockquote><b>┌ [ Ping ] :</b> {ping} ms\n<b>└ [ Uptime ] :</b> {uptime}</blockquote>"
   name: "Tester"
   set_loglevel: "<b>Please specify verbosity as an integer or string</b>"
   no_logs: "<b>You don't have any logs at verbosity</b> <code>{}</code><b>.</b>"
@@ -581,8 +581,8 @@ help:
   rich_commands: "Commands"
 astralix_info:
   missing_placeholder: "Missing {placeholder} placeholder"
-  info_message: "✨ <b>astralix</b>  {version}\n{me}\n\n<b>Uptime</b>  {uptime}\n<b>Ping</b>  <code>{ping} ms</code>\n<b>Prefix</b>  {prefix} · <b>Branch</b>  <code>{branch}</code>\n\n<blockquote expandable><b>System</b>\n{platform} · {os}\nPython {python_ver} · astralix-tl {atl_version}\nCPU {cpu_usage}% · RAM {ram_usage}\n\n<b>Updates</b>  {upd}</blockquote>"
-  rich_info_message: "{img}<h1>astralix</h1><p>{me} · {version}</p><hr><p><b>Uptime</b> {uptime}<br><b>Ping</b> <code>{ping} ms</code><br><b>Prefix</b> {prefix} · <b>Branch</b> <code>{branch}</code></p><details><summary>System</summary><p>{platform} · {os}</p><p>Python {python_ver} · astralix-tl {atl_version}<br>CPU {cpu_usage}% · RAM {ram_usage}</p><p><b>Updates</b> {upd}</p></details>"
+  info_message: "<blockquote><b>┌ [ Owner ] :</b> {me}\n<b>└ [ astralix Userbot ]</b></blockquote>\n<blockquote expandable><b>┌ [ CPU Usage ] :</b> {cpu_usage}%\n<b>├ [ RAM Usage ] :</b> {ram_usage}\n<b>└ [ OS ] :</b> {os}</blockquote>\n<blockquote expandable><b>┌ [ Version ] :</b> {version}\n<b>├ [ Commit ] :</b> {build}\n<b>└ [ Uptime ] :</b> {uptime}</blockquote>"
+  rich_info_message: "{img}<blockquote><b>┌ [ Owner ] :</b> {me}<br><b>└ [ astralix Userbot ]</b></blockquote><blockquote expandable><b>┌ [ CPU Usage ] :</b> {cpu_usage}%<br><b>├ [ RAM Usage ] :</b> {ram_usage}<br><b>└ [ OS ] :</b> {os}</blockquote><blockquote expandable><b>┌ [ Version ] :</b> {version}<br><b>├ [ Commit ] :</b> {build}<br><b>└ [ Uptime ] :</b> {uptime}</blockquote>"
   non_detectable: "Unavailable"
   ping_emoji: "emoji for ping in your info"
   send_info: "Send userbot info"
