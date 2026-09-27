@@ -41,7 +41,7 @@ from uuid import uuid4
 from astralixtl.tl.tlobject import TLObject
 
 from . import main, security, utils, validators
-from ._internal import resolve_client_id, set_client_id, tag_client_id
+from ._internal import private_write, resolve_client_id, set_client_id, tag_client_id
 from .database import Database
 from .inline.core import BotUpdateType, InlineManager
 from .translations import Strings, Translator
@@ -658,7 +658,7 @@ class Modules:
                     Path(mod).resolve()
                     for mod in _iter_module_files(
                         LOADED_MODULES_DIR,
-                        include=lambda name: name.endswith(f"{self.client.tg_id}.py"),
+                        include=lambda name: name.endswith(f"_{self.client.tg_id}.py"),
                     )
                 ]
             )
@@ -780,18 +780,21 @@ class Modules:
             (
                 value()
                 for value in vars(module).values()
-                if inspect.isclass(value) and issubclass(value, Module)
+                if inspect.isclass(value)
+                and value is not Module
+                and issubclass(value, Module)
+                and value.__module__ == module_name
             ),
             None,
         )
-
-        if hasattr(module, "__version__"):
-            ret.__version__ = module.__version__
 
         if ret is None:
             ret = module.register(module_name)
             if not isinstance(ret, Module):
                 raise TypeError(f"Instance is not a Module, it is {type(ret)}")
+
+        if hasattr(module, "__version__"):
+            ret.__version__ = module.__version__
 
         ret.__origin__ = origin
 
@@ -804,20 +807,21 @@ class Modules:
 
         await self.complete_registration(ret)
 
-        cls_name = ret.__class__.__name__
-
-        if save_fs:
-            path = os.path.join(
-                LOADED_MODULES_DIR,
-                f"{cls_name}_{self.client.tg_id}.py",
-            )
-
-            if origin == "<string>":
-                Path(path).write_text(spec.loader.data.decode(), encoding="utf-8")
-
-                logger.debug("Saved class %s to path %s", cls_name, path)
+        if save_fs and origin == "<string>":
+            self.save_module(ret)
 
         return ret
+
+    def module_path(self, classname: str) -> Path:
+        """Location of an uploaded module belonging to this account."""
+        if not classname.isidentifier():
+            raise ValueError("Invalid module class name")
+        return Path(LOADED_MODULES_DIR) / f"{classname}_{self.client.tg_id}.py"
+
+    def save_module(self, module: Module):
+        path = self.module_path(module.__class__.__name__)
+        private_write(path, module.__source__)
+        logger.debug("Saved class %s to path %s", module.__class__.__name__, path)
 
     def add_aliases(self, aliases: dict):
         """Saves aliases and applies them to <core>/<file> modules"""
@@ -1313,8 +1317,8 @@ class Modules:
         )
 
     @tag_client_id("client.tg_id")
-    async def unload_module(self, classname: str) -> list[str]:
-        """Remove module and all stuff from it"""
+    async def unload_module(self, classname: str, *, delete: bool = True) -> list[str]:
+        """Unload a module; only explicit uninstalls delete its saved source."""
         worked = []
 
         for module in self.modules.copy():
@@ -1330,13 +1334,10 @@ class Modules:
                 worked += [module.__class__.__name__]
 
                 name = module.__class__.__name__
-                path = os.path.join(
-                    LOADED_MODULES_DIR,
-                    f"{name}_{self.client.tg_id}.py",
-                )
+                path = self.module_path(name)
 
-                if os.path.isfile(path):
-                    os.remove(path)
+                if delete and path.is_file():
+                    path.unlink()
                     logger.debug("Removed %s file at path %s", name, path)
 
                 logger.debug("Removing module %s for unload", module)

@@ -40,6 +40,7 @@ import typing
 import uuid
 from collections import ChainMap
 from importlib.machinery import ModuleSpec
+from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
@@ -193,16 +194,44 @@ class LoaderMod(loader.Module):
         if self.allmodules.secure_boot:
             return
 
-        self.set(
-            "loaded_modules",
-            {
-                **{
-                    module.__class__.__name__: module.__origin__
-                    for module in self.allmodules.modules
-                    if module.__origin__.startswith("http")
-                },
-            },
-        )
+        # The installation registry must survive temporary startup failures.
+        installed = dict(self.get("loaded_modules", {}))
+        for module in self.allmodules.modules:
+            name = module.__class__.__name__
+            if module.__origin__.startswith("http"):
+                installed[name] = module.__origin__
+            elif module.__origin__ in ("<file>", "<string>"):
+                if self.allmodules.module_path(name).is_file():
+                    installed.pop(name, None)
+        self.set("loaded_modules", installed)
+
+    def _save_installation(self, instance):
+        """Commit a ready module before reporting installation success."""
+        name = instance.__class__.__name__
+        installed = dict(self.get("loaded_modules", {}))
+        if instance.__origin__ == "<string>":
+            self.allmodules.save_module(instance)
+            installed.pop(name, None)
+        elif instance.__origin__.startswith("http"):
+            self._write_module_cache(instance.__origin__, instance.__source__)
+            installed[name] = instance.__origin__
+        else:
+            return
+        self.set("loaded_modules", installed)
+        if instance.__origin__.startswith("http"):
+            # An explicit URL installation replaces a previous .lm copy only
+            # once the new source and its registry entry have been saved.
+            self.allmodules.module_path(name).unlink(missing_ok=True)
+
+    async def _discard_failed_module(self, instance):
+        """Clean runtime resources without uninstalling the saved module."""
+        if instance is None:
+            return
+        try:
+            await self.allmodules._shutdown_module(instance, "failed installation")
+        finally:
+            if instance in self.allmodules.modules:
+                self.allmodules.modules.remove(instance)
 
     def _get_banner_url(self, doc: str) -> str | None:
         match = re.search(r"# ?meta banner: ?(.+)", doc)
@@ -942,7 +971,7 @@ class LoaderMod(loader.Module):
                     if isinstance(n, ast.ClassDef)
                     and any(
                         isinstance(base, ast.Attribute)
-                        and base.value.id == "Module"
+                        and base.attr == "Module"
                         or isinstance(base, ast.Name)
                         and base.id == "Module"
                         for base in n.bases
@@ -970,7 +999,7 @@ class LoaderMod(loader.Module):
             nonlocal message
 
             with contextlib.suppress(Exception):
-                self.allmodules.modules.remove(instance)
+                await self._discard_failed_module(instance)
 
             if not message:
                 return
@@ -986,6 +1015,7 @@ class LoaderMod(loader.Module):
                 ),
             )
 
+        instance = None
         try:
             try:
                 spec = ModuleSpec(
@@ -997,7 +1027,7 @@ class LoaderMod(loader.Module):
                     spec,
                     module_name,
                     origin,
-                    save_fs=save_fs,
+                    save_fs=False,
                 )
             except ImportError as e:
                 logger.info(
@@ -1073,10 +1103,7 @@ class LoaderMod(loader.Module):
             except (loader.LoadError, ScamDetectionError) as e:
                 logger.error("Module %s failed security checks: %s", module_label, e)
                 with contextlib.suppress(Exception):
-                    await self.allmodules.unload_module(instance.__class__.__name__)
-
-                with contextlib.suppress(Exception):
-                    self.allmodules.modules.remove(instance)
+                    await self._discard_failed_module(instance)
 
                 if message:
                     if isinstance(e, loader.LoadError):
@@ -1092,7 +1119,7 @@ class LoaderMod(loader.Module):
                             message,
                             (
                                 self.strings["scam_module"].format(
-                                    name=instance.__class__.__name__,
+                                    name=utils.escape_html(module_label),
                                     prefix=self.get_prefix(),
                                 )
                             ),
@@ -1143,12 +1170,19 @@ class LoaderMod(loader.Module):
                         await asyncio.sleep(0.1)
 
                 task = asyncio.ensure_future(inner_proxy())
-                await self.allmodules.send_ready_one(
-                    instance,
-                    no_self_unload=True,
-                    from_dlmod=bool(message),
-                )
-                task.cancel()
+                try:
+                    await self.allmodules.send_ready_one(
+                        instance,
+                        no_self_unload=True,
+                        from_dlmod=bool(message),
+                    )
+                finally:
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
+
+                if save_fs:
+                    self._save_installation(instance)
             except CoreOverwriteError as e:
                 logger.error(
                     "Module %s tried to overwrite core %s %s during ready stage",
@@ -1165,10 +1199,7 @@ class LoaderMod(loader.Module):
                     e,
                 )
                 with contextlib.suppress(Exception):
-                    await self.allmodules.unload_module(instance.__class__.__name__)
-
-                with contextlib.suppress(Exception):
-                    self.allmodules.modules.remove(instance)
+                    await self._discard_failed_module(instance)
 
                 if message:
                     if isinstance(e, loader.LoadError):
@@ -1197,10 +1228,7 @@ class LoaderMod(loader.Module):
                     e,
                 )
                 with contextlib.suppress(Exception):
-                    await self.allmodules.unload_module(instance.__class__.__name__)
-
-                with contextlib.suppress(Exception):
-                    self.allmodules.modules.remove(instance)
+                    await self._discard_failed_module(instance)
 
                 if message:
                     await utils.answer(
@@ -1228,6 +1256,8 @@ class LoaderMod(loader.Module):
                 return False
         except Exception as e:
             logger.exception("Module threw because of %s", e)
+            with contextlib.suppress(Exception):
+                await self._discard_failed_module(instance)
 
             if message is not None:
                 await utils.answer(message, self.strings["load_failed"])
@@ -1670,6 +1700,22 @@ class LoaderMod(loader.Module):
         except CoreUnloadError:
             return self.strings["unload_core"].format(module)
 
+        if not worked and not instance:
+            # A module which failed to start still has an installation to remove.
+            suffix = f"_{self.tg_id}.py"
+            saved = {
+                path.name[:-len(suffix)]
+                for path in Path(loader.LOADED_MODULES_DIR).glob(f"*{suffix}")
+                if path.is_file()
+            }
+            names = saved | self.get("loaded_modules", {}).keys()
+            for name in names:
+                if name.isidentifier() and module.casefold() in (
+                    name.casefold(), name.removesuffix("Mod").casefold()
+                ):
+                    self.allmodules.module_path(name).unlink(missing_ok=True)
+                    worked.append(name)
+
         if not self.allmodules.secure_boot:
             self.set(
                 "loaded_modules",
@@ -1800,6 +1846,8 @@ class LoaderMod(loader.Module):
         shutil.rmtree(self._modules_cache_dir, ignore_errors=True)
 
         for file in os.scandir(loader.LOADED_MODULES_DIR):
+            if not file.name.endswith(f"_{self.tg_id}.py"):
+                continue
             try:
                 os.remove(file.path)
             except Exception:
@@ -2013,6 +2061,10 @@ class LoaderMod(loader.Module):
         return False
 
     async def _load_cached_module(self, url: str, name: str | None = None) -> bool:
+        # Local uploads take precedence over stale URL entries, even when the
+        # uploaded module could not initialize during this particular startup.
+        if name and name.isidentifier() and self.allmodules.module_path(name).is_file():
+            return False
         with dependency_installation(False):
             path = self._module_cache_path(url)
             cached = os.path.isfile(path)
@@ -2036,6 +2088,7 @@ class LoaderMod(loader.Module):
                     None,
                     name,
                     url,
+                    save_fs=False,
                     _raise_install_errors=True,
                 )
                 if not installed:
@@ -2082,13 +2135,8 @@ class LoaderMod(loader.Module):
 
             self.update_modules_in_db()
 
-            aliases = {
-                alias: cmd
-                for alias, cmd in self.lookup("settings").get("aliases", {}).items()
-                if self.allmodules.add_alias(alias, *cmd.split(maxsplit=1))
-            }
-
-            self.lookup("settings").set("aliases", aliases)
+            for alias, cmd in self.lookup("settings").get("aliases", {}).items():
+                self.allmodules.add_alias(alias, *cmd.split(maxsplit=1))
 
         self.fully_loaded = True
         logger.info(
