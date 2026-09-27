@@ -828,7 +828,7 @@ class Astralix:
         mode = self.arguments.web_mode or get_config_key("web_login_mode")
         if mode not in {"tunnel", "local"}:
             print("Choose how to log in / Выбери способ входа:")
-            print("  1. Temporary Cloudflare tunnel — cloudflared required")
+            print("  1. Temporary localhost.run tunnel — OpenSSH required")
             print("  2. Local browser / Локально — 127.0.0.1")
             print("CLI: restart with --no-web. Change later with --web-mode tunnel|local.")
             while mode not in {"tunnel", "local"}:

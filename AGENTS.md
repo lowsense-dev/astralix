@@ -55,7 +55,7 @@ a service for an existing installation.
   requirements, source hashes and import/export.
 - `astralix/modules/updater.py`: manual in-place Git updates and restart.
 - `astralix/_web_login.py`, `_tunnel_login.py`, `web/`: local and temporary
-  Cloudflare tunnel login, including QR. Encrypt public tunnel API traffic
+  localhost.run SSH tunnel login, including QR. Encrypt public tunnel API traffic
   between the browser and astralix; preserve session state across refreshes and
   reject reused encryption nonces.
 - `astralix/inline/`, `utils/messages.py`, `utils/rich.py`: Telegram rendering

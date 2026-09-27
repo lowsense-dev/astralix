@@ -26,7 +26,7 @@ Explicit module installation and explicit application updates may install depend
 
 Dependencies are defined in `pyproject.toml` and pinned in `uv.lock`. `requirements.txt` is a generated compatibility export for older updaters. After changing dependencies, run `uv lock` and `uv export --locked --no-hashes --no-emit-project --output-file requirements.txt`.
 
-On first login, choose a temporary Cloudflare Quick Tunnel or the local browser interface. The tunnel option requires `cloudflared`; its one-use URL expires with the login session after 15 minutes. Use `--web-mode tunnel` or `--web-mode local` to change the saved choice, or `--no-web` for interactive console login.
+On first login, choose a temporary localhost.run SSH tunnel or the local browser interface. The tunnel option requires OpenSSH; its one-use `lhr.life` URL expires with the login session after 15 minutes. Use `--web-mode tunnel` or `--web-mode local` to change the saved choice, or `--no-web` for interactive console login.
 
 Existing Heroku data is not automatically renamed: keep its backup and use a separate data directory for the rebranded application until migration is reviewed.
 

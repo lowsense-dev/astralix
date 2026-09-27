@@ -1,15 +1,37 @@
 # © LowSense, 2026 · astralix Userbot · GNU AGPLv3
 # https://github.com/lowsense-dev/astralix
-"""Publish the loopback login page through an ephemeral Cloudflare tunnel."""
+"""Publish the loopback login page through a temporary localhost.run SSH tunnel."""
 import asyncio
 import contextlib
 import re
 import shutil
+from urllib.parse import urlsplit
 
 from ._web_login import WebLogin, TTL
 
 
-TUNNEL_URL = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
+TUNNEL_URL = re.compile(r"https://[^\s<>\"']+")
+TUNNEL_HOST_SUFFIXES = (".lhr.life", ".localhost.run")
+
+
+def _public_tunnel_origin(output):
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", output)
+    for candidate in TUNNEL_URL.findall(clean_output):
+        try:
+            parsed = urlsplit(candidate.rstrip(".,;:)"))
+            port = parsed.port
+        except ValueError:
+            continue
+        hostname = (parsed.hostname or "").lower()
+        if (
+            parsed.scheme == "https"
+            and port is None
+            and parsed.username is None
+            and parsed.password is None
+            and any(hostname.endswith(suffix) for suffix in TUNNEL_HOST_SUFFIXES)
+        ):
+            return f"https://{hostname}"
+    return None
 
 
 class TunnelLogin(WebLogin):
@@ -26,25 +48,38 @@ class TunnelLogin(WebLogin):
             pass
 
     async def start(self, port=None):
-        cloudflared = shutil.which("cloudflared")
-        if not cloudflared:
+        ssh = shutil.which("ssh")
+        if not ssh:
             raise ConnectionError(
-                "Install cloudflared or choose local web login / --no-web"
+                "Install an OpenSSH client or choose local web login / --no-web"
             )
+
         local_link = await super().start(port)
         self.process = await asyncio.create_subprocess_exec(
-            cloudflared, "tunnel", "--no-autoupdate", "--url", self.origin,
+            ssh,
+            "-T",
+            "-o", "BatchMode=yes",
+            "-o", "ExitOnForwardFailure=yes",
+            "-o", "ServerAliveInterval=60",
+            "-o", "ServerAliveCountMax=3",
+            "-o", "StrictHostKeyChecking=accept-new",
+            "-R", f"80:127.0.0.1:{self.port}",
+            "nokey@localhost.run",
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
         try:
             while True:
-                line = await asyncio.wait_for(self.process.stdout.readline(), timeout=30)
+                line = await asyncio.wait_for(self.process.stdout.readline(), timeout=45)
                 if not line:
-                    raise ConnectionError("cloudflared exited before creating a tunnel")
-                match = TUNNEL_URL.search(line.decode(errors="replace"))
-                if match:
-                    self.external_origin = match.group(0)
+                    raise ConnectionError(
+                        "localhost.run SSH tunnel exited before returning its URL"
+                    )
+                self.external_origin = _public_tunnel_origin(
+                    line.decode(errors="replace")
+                )
+                if self.external_origin:
                     self.output_task = asyncio.create_task(self._drain_output())
                     break
         except BaseException:
@@ -63,7 +98,7 @@ class TunnelLogin(WebLogin):
             if not done:
                 raise asyncio.TimeoutError()
             if self.process.returncode is not None and not self.done.is_set():
-                raise ConnectionError("cloudflared tunnel stopped")
+                raise ConnectionError("localhost.run SSH tunnel stopped")
         finally:
             finished.cancel()
             process_done.cancel()
