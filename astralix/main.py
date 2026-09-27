@@ -828,7 +828,7 @@ class Astralix:
         mode = self.arguments.web_mode or get_config_key("web_login_mode")
         if mode not in {"tunnel", "local"}:
             print("Choose how to log in / Выбери способ входа:")
-            print("  1. astralix tunnel — https://tunnel.astralix.cc")
+            print("  1. Temporary Cloudflare tunnel — cloudflared required")
             print("  2. Local browser / Локально — 127.0.0.1")
             print("CLI: restart with --no-web. Change later with --web-mode tunnel|local.")
             while mode not in {"tunnel", "local"}:
@@ -1145,7 +1145,7 @@ class Astralix:
                     caption=client.loader.lookup("updater").strings["startup"].format(
                         version=".".join(map(str, __version__)),
                         build=(
-                            f'<a href="https://git.astralix.cc/lowsense-dev/astralix/commit/{build}">{build[:7]}</a>'
+                            f'<a href="https://github.com/lowsense-dev/astralix/commit/{build}">{build[:7]}</a>'
                             if build != "unknown" else "—"
                         ),
                         platform=utils.escape_html(utils.get_named_platform()),
@@ -1224,24 +1224,10 @@ class Astralix:
         await db.ensure_content_channel()
         await modules.send_ready()
 
-        from ._release_runner import mark_ready
-        async def heartbeat():
-            while True:
-                mark_ready(client.tg_id, [
-                    mod.__class__.__name__ for mod in modules.modules
-                    if getattr(mod, "__ready__", False)
-                ], connected=client.is_connected(), dispatcher=bool(client.dispatcher))
-                await asyncio.sleep(3)
-        health_task = asyncio.create_task(heartbeat())
+        if first:
+            await self._badge(client)
 
-        try:
-            if first:
-                await self._badge(client)
-            await client.run_until_disconnected()
-        finally:
-            health_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await health_task
+        await client.run_until_disconnected()
 
     @staticmethod
     def _loop_exception_handler(_, context: dict):

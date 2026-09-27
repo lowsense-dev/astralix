@@ -9,12 +9,22 @@
 import importlib.util
 from contextlib import contextmanager
 from contextvars import ContextVar
+import os
 import shutil
 import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+_INSTALL_ROOT_VALUE = os.environ.get("ASTRALIX_DATA_ROOT")
+_INSTALL_ROOT = (
+    Path(_INSTALL_ROOT_VALUE).expanduser() if _INSTALL_ROOT_VALUE else None
+)
+PROJECT_ROOT = (
+    _INSTALL_ROOT.resolve()
+    if _INSTALL_ROOT is not None and (_INSTALL_ROOT / ".git").exists()
+    else _PACKAGE_ROOT
+)
 _installation_allowed = ContextVar("dependency_installation_allowed", default=True)
 
 
@@ -48,11 +58,11 @@ def _uv_command() -> list[str]:
     return command
 
 
-def sync_command() -> list[str]:
+def sync_command(python: str | Path | None = None) -> list[str]:
     """Sync the project lockfile, preserving packages installed by user modules."""
     return [
         *_uv_command(), "sync", "--locked", "--inexact",
-        "--project", str(PROJECT_ROOT), "--python", sys.executable,
+        "--project", str(PROJECT_ROOT), "--python", str(python or sys.executable),
     ]
 
 

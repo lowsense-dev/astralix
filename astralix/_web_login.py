@@ -9,6 +9,7 @@ import asyncio
 import base64
 from collections import deque
 import hashlib
+import json
 from pathlib import Path
 import re
 import secrets
@@ -51,10 +52,17 @@ class WebLogin:
         self.done = asyncio.Event()
         self.lock = asyncio.Lock()
         self.origin = ""
+        self.external_origin = None
         self.runner = None
         self.expires = time.monotonic() + TTL
         self.key = secrets.token_urlsafe(32)
         self.key_hash = digest(self.key)
+        self.encrypted_transport = False
+        self.transport_key = None
+        self.secure_request_key = None
+        self.secure_response_key = None
+        self.secure_nonce_set = set()
+        self.secure_response_sequence = 0
         self.session_hash = None
         self.csrf = secrets.token_urlsafe(32)
         self.attempts = deque(maxlen=10)
@@ -62,17 +70,31 @@ class WebLogin:
         self.rpc_attempts = deque(maxlen=10)
         self.blocked_until = 0
         self.app = web.Application(client_max_size=4096, middlewares=[self.guard])
-        for path in ("/", "/app.css", "/app.js", "/tunnel.js"):
+        for path in ("/", "/app.css", "/app.js"):
             self.app.router.add_get(path, self.asset)
         self.app.router.add_post("/api/unlock", self.unlock)
         self.app.router.add_get("/api/state", self.state)
         self.app.router.add_post("/api/step", self.step)
+        self.app.router.add_post("/api/secure", self.secure)
 
     @property
     def cookie_name(self):
         return "astralix_login_" + self.origin.rsplit(":", 1)[-1]
 
     async def start(self, port=8765):
+        if self.encrypted_transport:
+            self.transport_key = base64.urlsafe_b64decode(self.key + "=")
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+            def derive(direction):
+                return HKDF(
+                    algorithm=hashes.SHA256(), length=32, salt=bytes(32),
+                    info=f"astralix-login-v1:{direction}".encode(),
+                ).derive(self.transport_key)
+
+            self.secure_request_key = derive("request")
+            self.secure_response_key = derive("response")
         self.runner = web.AppRunner(self.app, access_log=None, shutdown_timeout=5)
         await self.runner.setup()
         try:
@@ -83,12 +105,18 @@ class WebLogin:
             await self.close()
             raise
         link = f"{self.origin}/#key={self.key}"
+        if self.encrypted_transport:
+            link += "&secure=1"
         self.register_secret(self.key)
         self.key = None
         return link
 
     async def close(self):
         self.key = self.key_hash = self.session_hash = None
+        self.transport_key = None
+        self.secure_request_key = self.secure_response_key = None
+        self.secure_nonce_set.clear()
+        self.secure_response_sequence = 0
         self.qr_login = self.qr_code = None
         await self.stop_server()
         if self.client:
@@ -103,22 +131,32 @@ class WebLogin:
     @web.middleware
     async def guard(self, request, handler):
         try:
-            # Bind to one exact origin; ignore all proxy/forwarded headers.
-            if request.host != self.origin.removeprefix("http://"):
+            expected_origin = self.external_origin or self.origin
+            expected_host = expected_origin.split("://", 1)[-1].rstrip("/")
+            if request.host != expected_host:
                 raise web.HTTPForbidden()
-            if request.headers.get("Origin", self.origin) != self.origin:
+            if request.headers.get("Origin", expected_origin) != expected_origin:
                 raise web.HTTPForbidden()
             if request.headers.get("Sec-Fetch-Site") in {"cross-site", "same-site"}:
                 raise web.HTTPForbidden()
+            if (
+                self.encrypted_transport
+                and request.path.startswith("/api/")
+                and request.path != "/api/secure"
+            ):
+                raise web.HTTPForbidden()
             if request.method not in {"GET", "HEAD"}:
-                if request.headers.get("Origin") != self.origin:
+                if request.headers.get("Origin") != expected_origin:
                     raise web.HTTPForbidden()
                 if request.content_type != "application/json":
                     raise web.HTTPUnsupportedMediaType()
             if request.path.startswith("/api/"):
                 if time.monotonic() >= self.expires:
                     raise web.HTTPGone()
-                if request.path != "/api/unlock":
+                if request.path == "/api/secure":
+                    if not self.transport_key:
+                        raise web.HTTPUnauthorized()
+                elif request.path != "/api/unlock":
                     token = request.cookies.get(self.cookie_name, "")
                     if not self.session_hash or not secrets.compare_digest(digest(token), self.session_hash):
                         raise web.HTTPUnauthorized()
@@ -142,8 +180,93 @@ class WebLogin:
         })
         return response
 
+    async def secure(self, request):
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        aad = b"astralix-login-v1"
+        try:
+            outer = await request.json()
+            if (
+                not isinstance(outer, dict)
+                or set(outer) != {"iv", "data"}
+                or any(not isinstance(value, str) for value in outer.values())
+                or len(outer["iv"]) > 32
+                or len(outer["data"]) > 16384
+            ):
+                raise ValueError
+            nonce = base64.b64decode(outer["iv"], validate=True)
+            ciphertext = base64.b64decode(outer["data"], validate=True)
+            if len(nonce) != 12 or not 16 <= len(ciphertext) <= 8192:
+                raise ValueError
+            plaintext = AESGCM(self.secure_request_key).decrypt(nonce, ciphertext, aad)
+            payload = json.loads(plaintext)
+            if (
+                not isinstance(payload, dict)
+                or set(payload) not in ({"path"}, {"path", "data"})
+                or payload.get("path") not in {"/api/unlock", "/api/state", "/api/step"}
+                or ("data" in payload and not isinstance(payload["data"], dict))
+            ):
+                raise ValueError
+        except web.HTTPException as exc:
+            return self._secure_response(exc.status, {"error": exc.reason}, aad)
+        except Exception:
+            return self._secure_response(400, {"error": "bad"}, aad)
+
+        if nonce in self.secure_nonce_set:
+            return self._secure_response(409, {"error": "conflict"}, aad)
+        if len(self.secure_nonce_set) >= 4096:
+            return self._secure_response(429, {"error": "flood"}, aad)
+        self.secure_nonce_set.add(nonce)
+
+        path = payload["path"]
+        if path == "/api/unlock" and self.session_hash:
+            return self._secure_response(401, {"error": "unauthorized"}, aad)
+        if path != "/api/unlock" and not self.session_hash:
+            return self._secure_response(401, {"error": "unauthorized"}, aad)
+
+        class SecureRequest:
+            def __init__(self, data):
+                self.data = data
+
+            async def json(self):
+                return self.data
+
+        try:
+            if path == "/api/unlock":
+                response = await self.unlock(SecureRequest(payload.get("data")))
+            elif path == "/api/state":
+                response = await self.state(request)
+            else:
+                response = await self.step(SecureRequest(payload.get("data")))
+            result = json.loads(response.body)
+            return self._secure_response(response.status, result, aad)
+        except web.HTTPException as exc:
+            return self._secure_response(exc.status, {"error": exc.reason}, aad)
+        except Exception:
+            return self._secure_response(500, {"error": "internal"}, aad)
+
+    def _secure_response(self, status, result, aad):
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        if self.secure_response_sequence >= 2**96:
+            raise RuntimeError("Secure response nonce limit reached")
+        nonce = self.secure_response_sequence.to_bytes(12, "big")
+        self.secure_response_sequence += 1
+        plaintext = json.dumps(
+            {"status": status, "result": result}, separators=(",", ":")
+        ).encode()
+        encrypted = AESGCM(self.secure_response_key).encrypt(nonce, plaintext, aad)
+        return web.json_response({
+            "iv": base64.b64encode(nonce).decode(),
+            "data": base64.b64encode(encrypted).decode(),
+        })
+
     async def asset(self, request):
-        name, mime = {"/": ("index.html", "text/html"), "/app.css": ("app.css", "text/css"), "/app.js": ("app.js", "application/javascript"), "/tunnel.js": ("tunnel.js", "application/javascript")}[request.path]
+        name, mime = {
+            "/": ("index.html", "text/html"),
+            "/app.css": ("app.css", "text/css"),
+            "/app.js": ("app.js", "application/javascript"),
+        }[request.path]
         return web.Response(body=(ASSETS / name).read_bytes(), content_type=mime)
 
     async def body(self, request):
@@ -173,8 +296,13 @@ class WebLogin:
         token = secrets.token_urlsafe(32)
         self.session_hash = digest(token)
         response = web.json_response({"ok": True})
-        # HTTP cookie is intentionally limited to a loopback-only SSH endpoint.
-        response.set_cookie(self.cookie_name, token, httponly=True, samesite="Strict", path="/", max_age=TTL)
+        # Cookies are used only for the local browser flow; public tunnel requests
+        # keep their session capability inside the encrypted request body.
+        if not self.encrypted_transport:
+            response.set_cookie(
+                self.cookie_name, token, httponly=True, samesite="Strict",
+                secure=bool(self.external_origin), path="/", max_age=TTL,
+            )
         return response
 
     async def state(self, request):

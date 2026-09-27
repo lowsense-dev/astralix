@@ -1,176 +1,89 @@
 # © LowSense, 2026 · astralix Userbot · GNU AGPLv3
 # https://github.com/lowsense-dev/astralix
-"""Outbound login-only relay. No local listening socket or arbitrary proxying."""
+"""Publish the loopback login page through an ephemeral Cloudflare tunnel."""
 import asyncio
-import base64
 import contextlib
-import json
-import secrets
-import time
-from urllib.parse import urlencode
-
-import aiohttp
-from aiohttp import web
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+import re
+import shutil
 
 from ._web_login import WebLogin, TTL
 
-ORIGIN = "https://tunnel.astralix.cc"
 
-
-def derive_key(secret, direction):
-    return HKDF(
-        algorithm=hashes.SHA256(), length=32, salt=None,
-        info=f"astralix-login-v1:{direction}".encode(),
-    ).derive(secret)
+TUNNEL_URL = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 
 
 class TunnelLogin(WebLogin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.http = self.socket = self.reader = None
-        self.sid = None
-        self.receive_cipher = self.send_cipher = None
-        self.owner_token = self.resume_token = None
-        self.expected = 0
+        self.encrypted_transport = True
+        self.process = None
+        self.output_task = None
+
+    async def _drain_output(self):
+        if not self.process or not self.process.stdout:
+            return
+        while await self.process.stdout.readline():
+            pass
 
     async def start(self, port=None):
-        self.http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))
-        async with self.http.post(f"{ORIGIN}/v1/create", json={}) as response:
-            if response.status != 201:
-                raise ConnectionError("Tunnel service could not create a login session")
-            details = await response.json()
-        self.sid = details["id"]
-        secret = secrets.token_bytes(32)
-        encoded = base64.urlsafe_b64encode(secret).decode().rstrip("=")
-        self.receive_cipher = AESGCM(derive_key(secret, "request"))
-        self.send_cipher = AESGCM(derive_key(secret, "response"))
-        for value in (encoded, details["owner"], details["ticket"]):
-            self.register_secret(value)
-        self.expires = time.monotonic() + TTL
-        self.owner_token = details["owner"]
-        self.resume_token = secrets.token_urlsafe(32)
-        self.register_secret(self.resume_token)
-        await self._connect()
-        self.reader = asyncio.create_task(self._keep_connected())
-        # Fragment secrets are not sent in the HTTP request or Referer.
-        return f"{ORIGIN}/#" + urlencode({"id": self.sid, "ticket": details["ticket"], "secret": encoded})
-
-    async def _connect(self):
-        self.socket = await self.http.ws_connect(
-            f"{ORIGIN}/v1/connect", heartbeat=25, max_msg_size=16384,
+        cloudflared = shutil.which("cloudflared")
+        if not cloudflared:
+            raise ConnectionError(
+                "Install cloudflared or choose local web login / --no-web"
+            )
+        local_link = await super().start(port)
+        self.process = await asyncio.create_subprocess_exec(
+            cloudflared, "tunnel", "--no-autoupdate", "--url", self.origin,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
-        await self.socket.send_json({
-            "role": "owner", "id": self.sid, "token": self.owner_token,
-            "protocol": 2, "resume": self.resume_token,
-        })
         try:
-            hello = await self.socket.receive_json(timeout=15)
-        except (TypeError, ValueError):
-            raise ConnectionError("Tunnel handshake interrupted") from None
-        if not isinstance(hello, dict):
-            raise ConnectionError("Invalid tunnel handshake")
-        seq = hello.get("seq")
-        if hello.get("ready") is not True or type(seq) is not int or not self.expected <= seq <= 4096:
-            raise ConnectionError("Tunnel service rejected the connection")
-        self.expected = seq
-
-    async def _keep_connected(self):
-        delay = 1
-        while not self.done.is_set() and time.monotonic() < self.expires:
-            try:
-                if self.socket is None or self.socket.closed:
-                    await self._connect()
-                delay = 1
-                await self._receive()
-            except (aiohttp.ClientError, ConnectionError, asyncio.TimeoutError, OSError):
-                pass
-            finally:
-                if self.socket:
-                    await self.socket.close()
-            if not self.done.is_set():
-                await asyncio.sleep(min(delay, max(0, self.expires - time.monotonic())))
-                delay = min(delay * 2, 15)
-        if not self.done.is_set():
-            raise asyncio.TimeoutError()
+            while True:
+                line = await asyncio.wait_for(self.process.stdout.readline(), timeout=30)
+                if not line:
+                    raise ConnectionError("cloudflared exited before creating a tunnel")
+                match = TUNNEL_URL.search(line.decode(errors="replace"))
+                if match:
+                    self.external_origin = match.group(0)
+                    self.output_task = asyncio.create_task(self._drain_output())
+                    break
+        except BaseException:
+            await self.stop_server()
+            raise
+        return local_link.replace(self.origin, self.external_origin, 1)
 
     async def wait_completed(self):
-        done = asyncio.create_task(self.done.wait())
+        finished = asyncio.create_task(self.done.wait())
+        process_done = asyncio.create_task(self.process.wait())
         try:
-            finished, _ = await asyncio.wait(
-                (done, self.reader), timeout=TTL, return_when=asyncio.FIRST_COMPLETED,
+            done, _ = await asyncio.wait(
+                (finished, process_done), timeout=TTL,
+                return_when=asyncio.FIRST_COMPLETED,
             )
-            if not finished:
+            if not done:
                 raise asyncio.TimeoutError()
-            if self.reader in finished:
-                await self.reader
-                if not self.done.is_set():
-                    raise ConnectionError("Tunnel connection ended")
+            if self.process.returncode is not None and not self.done.is_set():
+                raise ConnectionError("cloudflared tunnel stopped")
         finally:
-            done.cancel()
+            finished.cancel()
+            process_done.cancel()
             with contextlib.suppress(asyncio.CancelledError):
-                await done
-
-    async def _receive(self):
-        async for message in self.socket:
-            if message.type != aiohttp.WSMsgType.TEXT:
-                break
-            try:
-                frame = json.loads(message.data)
-                seq = frame["seq"]
-                if type(seq) is not int or seq < self.expected or seq >= 4096:
-                    raise ValueError("Invalid sequence")
-                nonce = seq.to_bytes(12, "big")
-                raw = self.receive_cipher.decrypt(
-                    nonce, base64.b64decode(frame["data"], validate=True),
-                    f"{self.sid}:request:{seq}".encode(),
-                )
-                if len(raw) > 4096:
-                    raise ValueError("Oversized request")
-                request = json.loads(raw)
-                self.expected = seq + 1
-            except Exception:
-                raise ConnectionError("Tunnel authentication failed") from None
-            try:
-                if time.monotonic() >= self.expires:
-                    raise web.HTTPGone()
-                if not isinstance(request, dict):
-                    raise web.HTTPBadRequest()
-                if request.get("path") == "/api/state" and set(request) == {"path"}:
-                    result = self.state_data()
-                    result["csrf"] = ""
-                    status = 200
-                elif request.get("path") == "/api/step" and set(request) == {"path", "data"}:
-                    response = await self.submit(request["data"])
-                    result, status = json.loads(response.body), response.status
-                else:
-                    raise web.HTTPBadRequest()
-            except web.HTTPException as error:
-                result, status = {"error": "bad"}, error.status
-            except Exception:
-                result, status = {"error": "internal"}, 500
-            payload = json.dumps({"status": status, "result": result}).encode()
-            encrypted = self.send_cipher.encrypt(
-                nonce, payload, f"{self.sid}:response:{seq}".encode(),
-            )
-            await self.socket.send_json({"seq": seq, "data": base64.b64encode(encrypted).decode()})
+                await finished
+            with contextlib.suppress(asyncio.CancelledError):
+                await process_done
 
     async def stop_server(self):
-        if self.socket and not self.socket.closed:
-            with contextlib.suppress(Exception):
-                await self.socket.send_json({"close": True})
-        if self.reader:
-            self.reader.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await self.reader
-            self.reader = None
-        if self.socket:
-            await self.socket.close()
-            self.socket = None
-        if self.http:
-            await self.http.close()
-            self.http = None
-        self.receive_cipher = self.send_cipher = None
-        self.owner_token = self.resume_token = None
+        if self.output_task:
+            self.output_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.output_task
+            self.output_task = None
+        if self.process and self.process.returncode is None:
+            self.process.terminate()
+            try:
+                await asyncio.wait_for(self.process.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                self.process.kill()
+                await self.process.wait()
+        self.process = None
+        await super().stop_server()

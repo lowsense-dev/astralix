@@ -31,8 +31,8 @@ media = ["moviepy", "python-ffmpeg", "ffmpeg", "bs4"]
 speedups = ["uvloop; sys_platform != 'win32'"]
 
 [project.urls]
-Source = "https://git.astralix.cc/lowsense-dev/astralix"
-Homepage = "https://astralix.cc"
+Source = "https://github.com/lowsense-dev/astralix"
+Homepage = "https://github.com/lowsense-dev/astralix"
 
 [tool.uv]
 package = false

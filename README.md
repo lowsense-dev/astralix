@@ -5,7 +5,7 @@
 # astralix Userbot
 
 Telegram userbot with **astralix-tl**, installed from [PyPI](https://pypi.org/project/astralix-tl/).
-[Project repository](https://git.astralix.cc/lowsense-dev/astralix). Both repositories are public. There are no project Telegram channels or support chats.
+[Project repository](https://github.com/lowsense-dev/astralix). There are no project Telegram channels or support chats.
 
 ## Install from the source directory
 
@@ -26,7 +26,7 @@ Explicit module installation and explicit application updates may install depend
 
 Dependencies are defined in `pyproject.toml` and pinned in `uv.lock`. `requirements.txt` is a generated compatibility export for older updaters. After changing dependencies, run `uv lock` and `uv export --locked --no-hashes --no-emit-project --output-file requirements.txt`.
 
-On first login, choose the RU/EN web interface through `tunnel.astralix.cc` or locally on `127.0.0.1`. The choice is saved. Use `--web-mode tunnel` or `--web-mode local` to change it, or `--no-web` for interactive console login. Tunnel links expire after 15 minutes and allow one browser connection; restart login for a new link if disconnected.
+On first login, choose a temporary Cloudflare Quick Tunnel or the local browser interface. The tunnel option requires `cloudflared`; its one-use URL expires with the login session after 15 minutes. Use `--web-mode tunnel` or `--web-mode local` to change the saved choice, or `--no-web` for interactive console login.
 
 Existing Heroku data is not automatically renamed: keep its backup and use a separate data directory for the rebranded application until migration is reviewed.
 
