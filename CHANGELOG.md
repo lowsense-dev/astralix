@@ -1,6 +1,14 @@
 что.ты.заказала.
 # astralix Changelog
 
+## astralix 1.1.1
+
+- Preserve uploaded modules and installation records across failed loads and restarts.
+- Prepare manual updates in separate environments with startup checks and rollback.
+- Add update checks, release channels, operation history and configuration snapshots.
+- Add module diagnostics and portable source export/import.
+- Make sticky terminal sessions optional and disabled by default.
+
 ## astralix 1.1.0
 
 - Unified English and Russian interface text, status messages and buttons.
