@@ -430,11 +430,12 @@ class Help(loader.Module):
             ]
 
             for cmd in commands:
+                cmd = (self.get_prefix() if self.config["rich_mode"] else "") + cmd
                 if first:
-                    tmp += f"\n<code>{utils.escape_html(self.get_prefix() + cmd)}</code>"
+                    tmp += f"\n<code>{utils.escape_html(cmd)}</code>"
                     first = False
                 else:
-                    tmp += f" · <code>{utils.escape_html(self.get_prefix() + cmd)}</code>"
+                    tmp += f" · <code>{utils.escape_html(cmd)}</code>"
 
             icommands = []
 
@@ -526,68 +527,32 @@ class Help(loader.Module):
             )
             return
 
-        quoted_core = "".join(core_).replace("<code>", "<b>").replace(
-            "</code>", "</b>"
+        sections = (
+            [core_]
+            if only_core
+            else [plain_ + (no_commands_ if force else [])]
+            if only_loaded
+            else [core_, plain_ + (no_commands_ if force else [])]
         )
-        quoted_modules = "".join(
-            plain_ + (no_commands_ if force else [])
-        ).replace("<code>", "<b>").replace("</code>", "</b>")
-        match True:
-            case _ if only_core:
-                await utils.answer_with_media_fallback(
-                    message,
-                    (
-                        self.config["desc_icon"]
-                        + " {}\n <blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote>"
-                    ).format(
-                        reply,
-                        quoted_core,
-                        (
-                            ""
-                            if self.lookup("LoaderMod").fully_loaded
-                            else f"\n\n{self.strings['partial_load']}"
-                        ),
-                    ),
-                    file=banner,
-                    invert_media=self.config["invert_media"],
-                )
-            case _ if only_loaded:
-                await utils.answer_with_media_fallback(
-                    message,
-                    (
-                        self.config["desc_icon"]
-                        + " {}\n <blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote>"
-                    ).format(
-                        reply,
-                        quoted_modules,
-                        (
-                            ""
-                            if self.lookup("LoaderMod").fully_loaded
-                            else f"\n\n{self.strings['partial_load']}"
-                        ),
-                    ),
-                    file=banner,
-                    invert_media=self.config["invert_media"],
-                )
-            case _:
-                await utils.answer_with_media_fallback(
-                    message,
-                    (
-                        self.config["desc_icon"]
-                        + " {}\n <blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote>"
-                    ).format(
-                        reply,
-                        quoted_core,
-                        quoted_modules,
-                        (
-                            ""
-                            if self.lookup("LoaderMod").fully_loaded
-                            else f"\n\n{self.strings['partial_load']}"
-                        ),
-                    ),
-                    file=banner,
-                    invert_media=self.config["invert_media"],
-                )
+        blockquotes = "\n".join(
+            "<blockquote expandable>{}</blockquote>".format(
+                "".join(section)
+                .replace("<code>", "")
+                .replace("</code>", "")
+                .strip()
+            )
+            for section in sections
+            if section
+        )
+        if not self.lookup("LoaderMod").fully_loaded:
+            blockquotes += f"\n\n{self.strings['partial_load']}"
+
+        await utils.answer_with_media_fallback(
+            message,
+            f"{self.config['desc_icon']} {reply}\n{blockquotes}",
+            file=banner,
+            invert_media=self.config["invert_media"],
+        )
 
     @loader.command(ru_doc="| Репозиторий GitHub")
     async def support(self, message):
