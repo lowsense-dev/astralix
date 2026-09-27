@@ -504,7 +504,7 @@ class UpdaterMod(loader.Module):
     async def source(self, message: Message):
         await utils.answer(
             message,
-            self.strings["source"].format(self.config["GIT_ORIGIN_URL"]),
+            self.strings["source"].format("https://git.astralix.cc/"),
         )
 
     async def client_ready(self):
