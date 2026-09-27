@@ -1,6 +1,11 @@
 что.ты.заказала.
 # astralix Changelog
 
+## astralix 1.1.3
+
+- Refresh the startup log message in English and Russian with version, build, platform and prefix blocks.
+- Simplify the Linux platform label and omit invalid commit links when running without Git.
+
 ## astralix 1.1.2
 
 - Verify signed release metadata and SHA-256 file inventories before preparing updates.
