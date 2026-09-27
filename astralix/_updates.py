@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shlex
 import shutil
 import subprocess
 import sys
@@ -37,7 +38,10 @@ class Updates:
             log = self.directory / "operation.log"
             fd = os.open(log, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
             with os.fdopen(fd, "w") as output:
-                output.write(result.stdout + result.stderr + "\n")
+                output.write(
+                    f"$ {shlex.join(map(str, arguments))}\n"
+                    f"exit {result.returncode}\n{result.stdout}{result.stderr}\n"
+                )
             raise RuntimeError(f"{Path(str(arguments[0])).name} failed; details: {log}")
         return result.stdout.strip()
 

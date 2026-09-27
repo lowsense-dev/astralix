@@ -16,7 +16,7 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from .._branding import LOGO_PATH
+from .._branding import LOGO_PATH, REPO_URL
 import asyncio
 import contextlib
 import errno
@@ -68,7 +68,7 @@ class UpdaterMod(loader.Module):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "GIT_ORIGIN_URL",
-                "https://git.astralix.cc",
+                REPO_URL,
                 lambda: self.strings["origin_cfg_doc"],
                 validator=loader.validators.Link(),
             ),
@@ -508,6 +508,12 @@ class UpdaterMod(loader.Module):
         )
 
     async def client_ready(self):
+        if self.config["GIT_ORIGIN_URL"].removesuffix(".git").rstrip("/") in {
+            "https://github.com/coddrago/Heroku",
+            "https://github.com/ZetGoHack/Heroku",
+        }:
+            self.config["GIT_ORIGIN_URL"] = REPO_URL
+
         if not NO_GIT:
             try:
                 with git.Repo(os.path.dirname(utils.get_base_dir())):
