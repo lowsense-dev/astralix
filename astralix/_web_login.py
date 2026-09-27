@@ -6,6 +6,7 @@
 
 """Temporary, loopback-only first-login server."""
 import asyncio
+import base64
 from collections import deque
 import hashlib
 from pathlib import Path
@@ -20,6 +21,8 @@ from astralixtl.errors import (
     SessionPasswordNeededError,
 )
 
+from .qr import QRCode
+
 ASSETS = Path(__file__).with_name("web")
 TTL = 900
 
@@ -29,11 +32,19 @@ def digest(value):
 
 
 class WebLogin:
-    def __init__(self, client_factory, credentials=None, register_secret=lambda value: None):
+    def __init__(
+        self,
+        client_factory,
+        credentials=None,
+        register_secret=lambda value: None,
+        save_credentials=lambda credentials: None,
+    ):
         self.client_factory = client_factory
         self.credentials = credentials
         self.register_secret = register_secret
+        self.save_credentials = save_credentials
         self.client = None
+        self.qr_login = self.qr_code = None
         self.stage = "phone" if credentials else "api"
         self.phone = None
         self.phone_code_hash = None
@@ -78,6 +89,7 @@ class WebLogin:
 
     async def close(self):
         self.key = self.key_hash = self.session_hash = None
+        self.qr_login = self.qr_code = None
         await self.stop_server()
         if self.client:
             await self.client.disconnect()
@@ -166,7 +178,15 @@ class WebLogin:
         return response
 
     async def state(self, request):
-        return web.json_response({"stage": self.stage, "csrf": self.csrf})
+        data = self.state_data()
+        data["csrf"] = self.csrf
+        return web.json_response(data)
+
+    def state_data(self):
+        data = {"stage": self.stage}
+        if self.stage == "qr":
+            data["qr"] = self.qr_code
+        return data
 
     async def step(self, request):
         data = await self.body(request)
@@ -182,14 +202,18 @@ class WebLogin:
                 raise web.HTTPGone()
             if time.monotonic() < self.blocked_until:
                 return web.json_response({"error": "flood", "retry_after": max(1, int(self.blocked_until - time.monotonic()))}, status=429)
-            expected = {"api": {"api_id", "api_hash"}, "phone": {"phone"}, "code": {"code"}, "password": {"password"}}
-            if self.stage not in expected or set(data) != expected[self.stage]:
+            expected = {"api": {"api_id", "api_hash"}, "phone": {"phone"}, "qr": {"qr"}, "code": {"code"}, "password": {"password"}}
+            if self.stage not in expected or not (
+                set(data) == expected[self.stage]
+                or self.stage == "phone" and set(data) == {"qr"}
+            ):
                 raise web.HTTPConflict()
             for value in data.values():
                 self.register_secret(value)
             try:
                 await asyncio.wait_for(self.advance(data), timeout=45)
             except SessionPasswordNeededError:
+                self.qr_login = self.qr_code = None
                 self.stage = "password"
             except PhoneCodeInvalidError:
                 return web.json_response({"error": "code"}, status=400)
@@ -205,6 +229,8 @@ class WebLogin:
                     await self.client.disconnect()
                     self.client = None
                 self.credentials = None
+                self.qr_login = self.qr_code = None
+                self.save_credentials(None)
                 self.stage = "api"
                 return web.json_response({"error": "api", "stage": self.stage}, status=400)
             except FloodWaitError as exc:
@@ -212,25 +238,41 @@ class WebLogin:
                 return web.json_response({"error": "flood", "retry_after": exc.seconds}, status=429)
             except (TimeoutError, ConnectionError, OSError):
                 return web.json_response({"error": "network"}, status=503)
-            return web.json_response({"stage": self.stage})
+            return web.json_response(self.state_data())
 
     async def advance(self, data):
         if self.stage == "api":
             if not re.fullmatch(r"[0-9]{1,10}", data["api_id"]) or not 0 < int(data["api_id"]) < 2**31 or not re.fullmatch(r"[a-fA-F0-9]{32}", data["api_hash"]):
                 raise web.HTTPBadRequest()
             self.credentials = (int(data["api_id"]), data["api_hash"])
+            self.save_credentials(self.credentials)
             self.stage = "phone"
         elif self.stage == "phone":
+            if data.get("qr") == "start":
+                self.throttle(self.phone_attempts, 300)
+                await self.connect_client()
+                self.qr_login = await self.client.qr_login()
+                self.set_qr_code()
+                self.stage = "qr"
+                return
             if not re.fullmatch(r"\+[0-9]{7,15}", data["phone"]):
                 raise web.HTTPBadRequest()
             self.throttle(self.phone_attempts, 300)
-            if self.client is None:
-                self.client = self.client_factory(*self.credentials)
-            await self.client.connect()
+            await self.connect_client()
             sent = await self.client.send_code_request(data["phone"])
             self.phone = data["phone"]
             self.phone_code_hash = sent.phone_code_hash
             self.stage = "code"
+        elif self.stage == "qr":
+            if data["qr"] != "poll":
+                raise web.HTTPBadRequest()
+            try:
+                await self.qr_login.wait(10)
+            except asyncio.TimeoutError:
+                await self.qr_login.recreate()
+                self.set_qr_code()
+                return
+            await self.finish_login()
         else:
             self.throttle(self.rpc_attempts, 60)
             if self.stage == "code":
@@ -241,8 +283,28 @@ class WebLogin:
                 if not data["password"]:
                     raise web.HTTPBadRequest()
                 await self.client.sign_in(password=data["password"])
-            if not await self.client.get_me():
-                raise RuntimeError("Login did not authorize the client")
-            self.phone = self.phone_code_hash = None
-            self.stage = "done"
-            self.done.set()
+            await self.finish_login()
+
+    async def connect_client(self):
+        if self.client is None:
+            self.client = self.client_factory(*self.credentials)
+        await self.client.connect()
+
+    def set_qr_code(self):
+        url = self.qr_login.url
+        self.register_secret(url)
+        qr = QRCode()
+        qr.add_data(url)
+        matrix = qr.get_matrix()
+        packed = bytearray((len(matrix) ** 2 + 7) // 8)
+        for offset, dark in enumerate(value for row in matrix for value in row):
+            if dark:
+                packed[offset // 8] |= 1 << (7 - offset % 8)
+        self.qr_code = {"size": len(matrix), "data": base64.b64encode(packed).decode()}
+
+    async def finish_login(self):
+        if not await self.client.get_me():
+            raise RuntimeError("Login did not authorize the client")
+        self.phone = self.phone_code_hash = self.qr_login = self.qr_code = None
+        self.stage = "done"
+        self.done.set()

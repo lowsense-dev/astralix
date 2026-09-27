@@ -103,7 +103,8 @@ class TunnelLogin(WebLogin):
                 if not isinstance(request, dict):
                     raise web.HTTPBadRequest()
                 if request.get("path") == "/api/state" and set(request) == {"path"}:
-                    result = {"stage": self.stage, "csrf": ""}
+                    result = self.state_data()
+                    result["csrf"] = ""
                     status = 200
                 elif request.get("path") == "/api/step" and set(request) == {"path", "data"}:
                     response = await self.submit(request["data"])

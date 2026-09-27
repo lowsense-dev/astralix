@@ -60,7 +60,9 @@
             <p class="field-hint" data-i18n="passwordHint">Пароль двухэтапной аутентификации Telegram.</p>
           </div>
           <button id="submit" class="primary" type="submit"><span id="submit-label">Продолжить</span><span class="arrow" aria-hidden="true">↗</span></button>
+          <button id="qr-start" class="secondary" type="button" data-i18n="qrButton" hidden>Войти по QR-коду</button>
         </form>
+        <div id="qr-panel" class="qr-login" hidden><canvas id="qr-code" role="img" aria-label="QR-код для входа в Telegram"></canvas><p data-i18n="qrHint">Открой Telegram → Настройки → Устройства → Подключить устройство и отсканируй код.</p></div>
         <div id="completion" class="completion" hidden><span class="dot"></span><span data-i18n="ready">Можно закрыть эту вкладку</span></div>
         <div class="privacy"><span aria-hidden="true">⌁</span><p data-i18n="privacy">Данные отправляются только в твой экземпляр astralix и Telegram.</p></div>
       </div>

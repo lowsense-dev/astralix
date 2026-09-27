@@ -851,12 +851,22 @@ class Astralix:
                 lang_code="en", system_lang_code="en-US",
             )
 
+        def save_credentials(credentials):
+            if credentials:
+                save_config_key("api_id", credentials[0])
+                save_config_key("api_hash", credentials[1])
+                self._get_api_token()
+            else:
+                save_config_key("api_id", False)
+                save_config_key("api_hash", False)
+                self.api_token = None
+
         credentials = (self.api_token.ID, self.api_token.HASH) if self.api_token else None
         if mode == "tunnel":
             from ._tunnel_login import TunnelLogin
-            login = TunnelLogin(make_client, credentials, register_secret)
+            login = TunnelLogin(make_client, credentials, register_secret, save_credentials)
         else:
-            login = WebLogin(make_client, credentials, register_secret)
+            login = WebLogin(make_client, credentials, register_secret, save_credentials)
         try:
             link = await login.start(self.arguments.web_port)
             print_banner("banner.txt")
@@ -871,13 +881,10 @@ class Astralix:
             # Let the browser display completion before closing the temporary server.
             await asyncio.sleep(2)
             await login.stop_server()
-            save_config_key("api_id", login.credentials[0])
-            save_config_key("api_hash", login.credentials[1])
-            self._get_api_token()
             await self.save_client_session(login.client)
             return True
         except asyncio.TimeoutError:
-            print("Web login expired. Restart astralix to get a new link.")
+            print("Web login expired. Restart astralix to retry.")
             return False
         except (ClientError, ConnectionError, OSError):
             print("Web login connection failed. Retry or choose --web-mode local / --no-web.")
