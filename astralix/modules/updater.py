@@ -42,6 +42,7 @@ from astralixtl.tl.types import (
 
 from .. import loader, main, utils, version
 from .._updates import Updates
+from .._dependencies import PROJECT_ROOT
 from .._internal import restart
 from ..inline.types import BotInlineCall, InlineCall
 
@@ -133,11 +134,18 @@ class UpdaterMod(loader.Module):
         return res
 
     def _get_update_state(self) -> tuple[str, str, str | typing.Literal[False]]:
-        with git.Repo() as repo:
+        with git.Repo(PROJECT_ROOT) as repo:
             channel = self._channel()
+            reference = f"refs/astralix-releases/{channel}"
+            current = repo.head.commit.hexsha
+            try:
+                repo.commit(reference)
+                has_reference = True
+            except (git.BadName, git.BadObject, ValueError):
+                has_reference = False
             now = time.monotonic()
             if now >= self._git_fetch_backoff_until:
-                if now - self._last_git_fetch >= self._GIT_FETCH_INTERVAL:
+                if not has_reference or now - self._last_git_fetch >= self._GIT_FETCH_INTERVAL:
                     Updates().check(self.config["GIT_ORIGIN_URL"], channel)
                     self._last_git_fetch = now
             else:
@@ -145,12 +153,11 @@ class UpdaterMod(loader.Module):
                     "Skipping changelog fetch for %.0f more seconds after EMFILE",
                     self._git_fetch_backoff_until - now,
                 )
+                if not has_reference:
+                    return current, current, False
 
-            current = repo.head.commit.hexsha
-            latest = next(
-                repo.iter_commits(f"refs/astralix-releases/{channel}", max_count=1)
-            ).hexsha
-            commits = [*repo.iter_commits(f"HEAD..refs/astralix-releases/{channel}")]
+            latest = repo.commit(reference).hexsha
+            commits = [*repo.iter_commits(f"HEAD..{reference}")]
 
             return (
                 current,
@@ -171,7 +178,7 @@ class UpdaterMod(loader.Module):
         if not self._git_available:
             return ""
         try:
-            with git.Repo() as repo:
+            with git.Repo(PROJECT_ROOT) as repo:
                 return next(
                     repo.iter_commits(f"refs/astralix-releases/{self._channel()}", max_count=1)
                 ).hexsha
