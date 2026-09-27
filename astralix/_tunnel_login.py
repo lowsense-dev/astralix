@@ -76,9 +76,10 @@ class TunnelLogin(WebLogin):
                     raise ConnectionError(
                         "localhost.run SSH tunnel exited before returning its URL"
                     )
-                self.external_origin = _public_tunnel_origin(
-                    line.decode(errors="replace")
-                )
+                output = line.decode(errors="replace")
+                if "tunneled with tls termination" not in output.lower():
+                    continue
+                self.external_origin = _public_tunnel_origin(output)
                 if self.external_origin:
                     self.output_task = asyncio.create_task(self._drain_output())
                     break
