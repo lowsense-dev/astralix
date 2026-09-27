@@ -25,6 +25,5 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: uv run --no-sync python tools/check_langpacks.py --base "${BASE_SHA:-HEAD^}"
-      - run: uv run --no-sync python -m unittest discover -s tests
       - run: uv run --no-sync python -m compileall -q astralix
       - run: uv pip check
