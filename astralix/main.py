@@ -1144,7 +1144,11 @@ class Astralix:
                     str(LOGO_PATH),
                     caption=client.loader.lookup("updater").strings["startup"].format(
                         version=".".join(map(str, __version__)),
-                        build=f'<a href="https://git.astralix.cc/lowsense-dev/astralix/commit/{build}">{build[:7]}</a>',
+                        build=(
+                            f'<a href="https://git.astralix.cc/lowsense-dev/astralix/commit/{build}">{build[:7]}</a>'
+                            if build != "unknown" else "—"
+                        ),
+                        platform=utils.escape_html(utils.get_named_platform()),
                         prefix=utils.escape_html("." if pref is None else pref),
                     ),
                     message_thread_id=message_thread_id,

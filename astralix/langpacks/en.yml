@@ -314,7 +314,7 @@ presets:
 
 settings:
   name: "Settings"
-  linux: "Linux Device"
+  linux: "Linux"
   linux_install: "Install astralix with one command:\n<pre><code class=\"language-shell\">curl -fsSL https://astralix.cc/install.sh | bash</code></pre>\n<i>The installer downloads the project, installs dependencies with uv and offers to configure autostart.</i>"
   too_many_args: "<b>Too many args</b>"
   blacklisted: "<b>Chat {} blacklisted from userbot</b>"
@@ -497,7 +497,7 @@ updater:
   release_status_rollback_requested: "rollback requested"
   release_status_cancelled: "cancelled"
   _cmd_doc_updatehistory: "Show recent updates, rollbacks and their results"
-  startup: "✨ <b>astralix</b> <code>{version}</code>\n<i>Ready to use</i>\n\n<b>Build</b>  {build}\n<b>Prefix</b>  <code>{prefix}</code>"
+  startup: "✨ <b>astralix Userbot</b>\n<i>Started · Ready to use</i>\n\n<blockquote><b>┌ Version :</b> <code>{version}</code>\n<b>└ Build :</b> {build}</blockquote>\n<blockquote><b>┌ Platform :</b> {platform}\n<b>└ Prefix :</b> <code>{prefix}</code></blockquote>"
   name: "Updater"
   source: "<b>Read the source code from</b> <a href='{}'>here</a>"
   restarting_caption: "<b>Restarting {}</b>\n<i>This usually takes a few seconds.</i>"

@@ -273,6 +273,7 @@ presets:
 
   name: Presets
 settings:
+  linux: "Linux"
   linux_install: "Установка astralix одной командой:\n<pre><code class=\"language-shell\">curl -fsSL https://astralix.cc/install.sh | bash</code></pre>\n<i>Установщик скачает проект, установит зависимости через uv и предложит настроить автозапуск.</i>"
   too_many_args: "<b>Слишком много аргументов</b>"
   blacklisted: "<b>Чат {} добавлен в черный список юзербота</b>"
@@ -454,7 +455,7 @@ updater:
   release_status_rollback_requested: "запрошен откат"
   release_status_cancelled: "отменён"
   _cmd_doc_updatehistory: "История обновлений, откатов и их результатов"
-  startup: "✨ <b>astralix</b> <code>{version}</code>\n<i>Готов к работе</i>\n\n<b>Сборка</b>  {build}\n<b>Префикс</b>  <code>{prefix}</code>"
+  startup: "✨ <b>astralix Userbot</b>\n<i>Запущен · Готов к работе</i>\n\n<blockquote><b>┌ Версия :</b> <code>{version}</code>\n<b>└ Сборка :</b> {build}</blockquote>\n<blockquote><b>┌ Платформа :</b> {platform}\n<b>└ Префикс :</b> <code>{prefix}</code></blockquote>"
   source: "<b>Исходный код можно прочитать</b> <a href='{}'>здесь</a>"
   restarting_caption: "<b>Перезапуск {}</b>\n<i>Обычно это занимает несколько секунд.</i>"
   downloading: "<b>Скачивание обновлений...</b>"
