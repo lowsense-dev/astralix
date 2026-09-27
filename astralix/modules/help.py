@@ -304,9 +304,12 @@ class Help(loader.Module):
             await utils.answer_with_media_fallback(message, rich_message=rich_message)
             return
 
+        quoted_commands = (cmds + inline_cmd).replace("<code>", "<b>").replace(
+            "</code>", "</b>"
+        )
         await utils.answer_with_media_fallback(
             message,
-            f"{reply}<blockquote expandable>{cmds}{inline_cmd}</blockquote>"
+            f"{reply}<blockquote expandable>{quoted_commands}</blockquote>"
             + (
                 f"<blockquote expandable>\n{placeholders}</blockquote>"
                 if placeholders
@@ -523,6 +526,12 @@ class Help(loader.Module):
             )
             return
 
+        quoted_core = "".join(core_).replace("<code>", "<b>").replace(
+            "</code>", "</b>"
+        )
+        quoted_modules = "".join(
+            plain_ + (no_commands_ if force else [])
+        ).replace("<code>", "<b>").replace("</code>", "</b>")
         match True:
             case _ if only_core:
                 await utils.answer_with_media_fallback(
@@ -532,7 +541,7 @@ class Help(loader.Module):
                         + " {}\n <blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote>"
                     ).format(
                         reply,
-                        "".join(core_),
+                        quoted_core,
                         (
                             ""
                             if self.lookup("LoaderMod").fully_loaded
@@ -550,7 +559,7 @@ class Help(loader.Module):
                         + " {}\n <blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote>"
                     ).format(
                         reply,
-                        "".join(plain_ + (no_commands_ if force else [])),
+                        quoted_modules,
                         (
                             ""
                             if self.lookup("LoaderMod").fully_loaded
@@ -568,8 +577,8 @@ class Help(loader.Module):
                         + " {}\n <blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote><blockquote expandable>{}</blockquote>"
                     ).format(
                         reply,
-                        "".join(core_),
-                        "".join(plain_ + (no_commands_ if force else [])),
+                        quoted_core,
+                        quoted_modules,
                         (
                             ""
                             if self.lookup("LoaderMod").fully_loaded
