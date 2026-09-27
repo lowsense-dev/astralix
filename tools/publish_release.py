@@ -9,11 +9,11 @@ import argparse
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
 import time
+import uuid
 
 from sign_release import build, canonical
 from astralix._release_trust import verify_manifest
@@ -39,13 +39,14 @@ def publish(channel, commit, key_path, remote):
     if trusted.get(keyid) != base64.b64encode(public).decode():
         raise ValueError('Signing key does not match the published trust root')
     with tempfile.TemporaryDirectory(prefix='astralix-publish-') as directory:
-        url = git('remote', 'get-url', remote)
         git('init', '--quiet', directory)
         git('config', 'user.name', 'LowSense release signing', cwd=directory)
         git('config', 'user.email', 'release@astralix.cc', cwd=directory)
-        git('remote', 'add', 'origin', url, cwd=directory)
-        if git('ls-remote', '--heads', 'origin', 'release-metadata', cwd=directory):
-            git('fetch', 'origin', 'release-metadata', cwd=directory)
+        source = git('rev-parse', '--show-toplevel')
+        if git('ls-remote', '--heads', remote, 'release-metadata'):
+            git('fetch', remote, 'release-metadata')
+            metadata_head = git('rev-parse', 'FETCH_HEAD')
+            git('fetch', source, metadata_head, cwd=directory)
             git('checkout', '-b', 'release-metadata', 'FETCH_HEAD', cwd=directory)
         else:
             git('checkout', '--orphan', 'release-metadata', cwd=directory)
@@ -60,7 +61,14 @@ def publish(channel, commit, key_path, remote):
         path.write_bytes(canonical(envelope) + b'\n')
         git('add', path.name, cwd=directory)
         git('commit', '-m', f'Authorize {channel} release {commit[:12]}', cwd=directory)
-        git('push', 'origin', 'release-metadata', cwd=directory)
+        # Push from the development checkout so its credential helper is used.
+        # No credentials are copied to the temporary repository or into URLs.
+        reference = 'refs/astralix-publishing/' + uuid.uuid4().hex
+        try:
+            git('fetch', directory, f'refs/heads/release-metadata:{reference}')
+            git('push', remote, f'{reference}:refs/heads/release-metadata')
+        finally:
+            git('update-ref', '-d', reference)
     print(f'Published signed {channel} release {commit[:12]}')
 
 
