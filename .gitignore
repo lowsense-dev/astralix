@@ -180,6 +180,8 @@ astralix.log.*
 unknown_errors.txt
 .modules_cache/
 .astralix-update-backups/
+.astralix-releases/
+.preflight-data/
 .env.*
 *.session*
 *.pem

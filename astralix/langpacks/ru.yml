@@ -428,6 +428,30 @@ test:
 
   name: Test
 updater:
+  startup_timeout_doc: "Сколько секунд ждать готовности всех аккаунтов и основных модулей до автоматического отката."
+  release_error: "<b>Не удалось выполнить операцию</b>\n<code>{}</code>"
+  update_usage: "Использование: update [--check] [--channel main|dev] [-f] или update --history"
+  rollback_usage: "Использование: rollback [-f] [--restore-data]. Откат к предыдущему рабочему релизу, а не на число коммитов."
+  release_check: "<b>astralix · проверка обновления</b>\nКанал: <code>{}</code>\nСейчас: <code>{}</code>\nДоступно: <code>{}</code>\n\n<b>Коммиты</b>\n<pre>{}</pre>\n<b>Зависимости</b>\n<pre>{}</pre>\n<b>Локальные правки</b>\n<pre>{}</pre>"
+  release_no_changes: "Без изменений"
+  release_clean: "Рабочая копия чистая"
+  release_dirty: "Есть локальные правки. Закоммить или убери их в stash перед переключением релиза."
+  release_current: "<b>Этот релиз уже установлен.</b>"
+  release_confirm: "Подготовить и запустить этот релиз? При ошибке запуска автоматически вернётся предыдущая версия. Данные аккаунта останутся на месте."
+  release_preparing: "<b>Подготовка релиза</b>\nСоздаю отдельное окружение и проверяю зависимости. Текущий юзербот продолжает работать."
+  release_history: "<b>astralix · история релизов</b>\n\n{}"
+  release_no_history: "Операций с релизами пока нет."
+  release_rollback_confirm: "<b>Вернуть предыдущий рабочий релиз?</b>\nБудут возвращены его код и окружение. Текущие данные аккаунта сохранятся."
+  release_rollback_data: "<b>Вернуть предыдущий релиз и восстановить снимок конфигов?</b>\nИзменения конфигов и настроек модулей после этого снимка будут заменены. Файлы Telegram-сессий не восстанавливаются."
+  release_status_prepared: "подготовлен"
+  release_status_healthy: "готов"
+  release_status_failed: "ошибка запуска"
+  release_status_prepare_failed: "ошибка подготовки"
+  release_status_interrupted: "запуск прерван"
+  release_status_automatic_rollback: "автоматический откат"
+  release_status_rollback_requested: "запрошен откат"
+  release_status_cancelled: "отменён"
+  _cmd_doc_updatehistory: "История обновлений, откатов и их результатов"
   startup: "✨ <b>astralix</b> <code>{version}</code>\n<i>Готов к работе</i>\n\n<b>Сборка</b>  {build}\n<b>Префикс</b>  <code>{prefix}</code>"
   source: "<b>Исходный код можно прочитать</b> <a href='{}'>здесь</a>"
   restarting_caption: "<b>Перезапуск {}</b>\n<i>Обычно это занимает несколько секунд.</i>"
@@ -463,8 +487,8 @@ updater:
   changelog: '<b>Список изменений последнего масштабного обновления:</b><blockquote expandable>{}</blockquote>'
   _cmd_doc_restart: "Перезагружает юзербот"
   _cmd_doc_source: "Показать ссылку на исходный код проекта"
-  _cmd_doc_update: "Скачивает обновления юзербота"
-  _cmd_doc_rollback: "Откатывает обновления юзербота"
+  _cmd_doc_update: "[--check] [--channel main|dev] [--history] [-f] — подготовка и переключение релиза"
+  _cmd_doc_rollback: "[-f] [--restore-data] — предыдущий код и окружение; опционально восстановить конфиги"
 
   name: Updater
   _cmd_doc_changelog: Показать changelog последнего крупного обновления
@@ -559,6 +583,21 @@ astralix_info:
   name: astralixInfo
   _cls_doc: Показать информацию о юзерботе
 loader:
+  modules_export_caption: "Экспорт модулей astralix · установок: {0}\nНет исходника: {1}. Конфиги аккаунта и Telegram-сессии не включены."
+  modules_export_saved: "<b>Архив модулей отправлен в Избранное.</b>"
+  modules_import_reply: "Ответь на архив модулей astralix размером до 32 МБ. Импорт запускает код модулей — используй только доверенные архивы."
+  modules_class_mismatch: "Класс модуля не совпадает с манифестом: {}"
+  modules_importing: "<b>Импорт модулей…</b>"
+  modules_import_done: "<b>Импорт завершён</b>\nУстановлено: {}\nОшибка или нет исходника: {}"
+  modules_running: "работает"
+  modules_failed: "ошибка: {}"
+  modules_safe_mode: "пропущен в безопасном режиме"
+  modules_not_running: "установлен, не запущен"
+  modules_empty: "Сторонние модули не установлены."
+  modules_doctor: "<b>astralix · диагностика модулей</b>\n\n<pre>{}</pre>"
+  modules_usage: "<code>modules doctor</code> · состояние и ошибки\n<code>modules export</code> · исходники в Избранное\n<code>modules import</code> · ответ на доверенный архив; устанавливает его код"
+  modules_operation_failed: "<b>Ошибка операции с модулями</b>\n<code>{}</code>"
+  _cmd_doc_modules: "doctor | export | import — диагностика и перенос исходников модулей"
   caption_help: "<i>Все команды: <code>{}help</code></i>"
   batch_loaded: "<b>Установлено модулей</b> · {}"
   commands_title: "Команды"

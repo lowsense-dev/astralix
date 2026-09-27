@@ -27,6 +27,10 @@ import shutil
 import sys
 from pathlib import Path
 
+from ._release_runner import bootstrap
+
+bootstrap()
+
 
 if "--no-git" in sys.argv:
     os.environ["ASTRALIX_NO_GIT"] = "1"
@@ -40,11 +44,11 @@ def get_data_root():
         if arg.startswith("--data-root="):
             return Path(arg.split("=", maxsplit=1)[1]).expanduser()
 
-    return Path(
+    return Path(os.environ.get("ASTRALIX_DATA_ROOT") or (
         "/data"
         if "DOCKER" in os.environ
         else os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    )
+    ))
 
 
 def wipe_data():
@@ -90,6 +94,7 @@ def wipe_data():
     sys.exit(0)
 
 
+os.environ["ASTRALIX_DATA_ROOT"] = str(get_data_root().resolve())
 wipe_data()
 
 

@@ -315,7 +315,7 @@ MODULES_NAME = "modules"
 ru_keys = 'ёйцукенгшщзхъфывапролджэячсмитьбю.Ё"№;%:?ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,'
 en_keys = "`qwertyuiop[]asdfghjkl;'zxcvbnm,./~@#$%^&QWERTYUIOP{}ASDFGHJKL:\"|ZXCVBNM<>?"
 
-BASE_DIR = (
+BASE_DIR = os.environ.get("ASTRALIX_DATA_ROOT") or (
     "/data"
     if "DOCKER" in os.environ
     else os.path.normpath(os.path.join(utils.get_base_dir(), ".."))
@@ -595,6 +595,7 @@ class Modules:
         self.db = db
         self.translator = translator
         self.secure_boot = False
+        self.load_failures = {}
         asyncio.ensure_future(self._junk_collector())
         self.inline = InlineManager(self.client, self._db, self)
         self.client.astralix_inline = self.inline
@@ -701,6 +702,7 @@ class Modules:
 
                 logger.debug("Successfully loaded %s from filesystem", module_name)
             except Exception as e:
+                self.load_failures[Path(mod).stem.removesuffix(f"_{self.client.tg_id}")] = str(e)
                 logger.exception("Failed to load module %s due to %s:", mod, e)
 
         return loaded
@@ -1211,6 +1213,7 @@ class Modules:
         no_self_unload: bool = False,
         from_dlmod: bool = False,
     ):
+        mod.__ready__ = False
         if from_dlmod:
             try:
                 if len(inspect.signature(mod.on_dlmod).parameters) == 2:
@@ -1226,6 +1229,7 @@ class Modules:
             else:
                 await mod.client_ready()
         except SelfUnload as e:
+            self.load_failures[mod.__class__.__name__] = str(e)
             if no_self_unload:
                 raise e
 
@@ -1235,12 +1239,14 @@ class Modules:
                 self.modules.remove(mod)
             return
         except SelfSuspend as e:
+            self.load_failures[mod.__class__.__name__] = str(e)
             if no_self_unload:
                 raise e
 
             logger.debug("Suspending %s, because it raised SelfSuspend", mod)
             return
         except Exception as e:
+            self.load_failures[mod.__class__.__name__] = str(e)
             logger.exception(
                 (
                     "Failed to send mod init complete signal for %s due to %s,"
@@ -1305,6 +1311,9 @@ class Modules:
                     mod.strings.external_strings = translations
 
             mod.create_task(refresh_translations())
+
+        mod.__ready__ = True
+        self.load_failures.pop(mod.__class__.__name__, None)
 
     def get_classname(self, name: str) -> str:
         return next(

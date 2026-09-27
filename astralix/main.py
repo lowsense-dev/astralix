@@ -83,7 +83,7 @@ from .translations import Translator
 from .version import __version__
 
 
-BASE_DIR = (
+BASE_DIR = os.environ.get("ASTRALIX_DATA_ROOT") or (
     "/data"
     if "DOCKER" in os.environ
     else os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -1213,6 +1213,13 @@ class Astralix:
         await modules.inline.register_manager()
         await db.ensure_content_channel()
         await modules.send_ready()
+
+        from ._release_runner import mark_ready
+        mark_ready(client.tg_id, [
+            mod.__class__.__name__ for mod in modules.modules
+            if getattr(mod, "__ready__", False)
+            and mod.__origin__.startswith("<core")
+        ])
 
         if first:
             await self._badge(client)

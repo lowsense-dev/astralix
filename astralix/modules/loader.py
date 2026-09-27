@@ -53,7 +53,8 @@ from astralixtl.tl.types import Channel, InputMediaWebPage
 
 from .. import loader, main, utils
 from .._dependencies import dependency_installation, install_command
-from .._internal import fetch_text, private_write
+from .._internal import fetch_text, private_write, redact
+from .. import _module_archive
 from .._local_storage import RemoteStorage
 from ..inline.types import InlineCall
 from ..types import CoreOverwriteError, CoreUnloadError
@@ -1737,6 +1738,7 @@ class LoaderMod(loader.Module):
             else self.strings["not_unloaded"]
         )
         for mod_name in worked:
+            self.allmodules.load_failures.pop(mod_name, None)
             utils.unregister_placeholders(mod_name)
 
         if force and worked:
@@ -1839,6 +1841,88 @@ class LoaderMod(loader.Module):
         self.config["ADDITIONAL_REPOS"].remove(args)
 
         await utils.answer(message, self.strings["repo_deleted"].format(args))
+
+    def _installed_sources(self):
+        installed = {}
+        for name, url in self.get("loaded_modules", {}).items():
+            path = Path(self._module_cache_path(url))
+            installed[name] = {
+                "origin": url,
+                "source": path.read_text() if path.is_file() else None,
+            }
+        suffix = f"_{self.tg_id}.py"
+        for path in Path(loader.LOADED_MODULES_DIR).glob(f"*{suffix}"):
+            if path.is_file() and not path.is_symlink():
+                installed[path.name[:-len(suffix)]] = {"origin": "<file>", "source": path.read_text()}
+        for module in self.allmodules.modules:
+            if not module.__origin__.startswith("<core"):
+                installed.setdefault(module.__class__.__name__, {
+                    "origin": module.__origin__, "source": getattr(module, "__source__", None),
+                })
+        return installed
+
+    @loader.command()
+    async def modules(self, message: Message):
+        """doctor | export | import: diagnose modules or transfer their sources."""
+        action = utils.get_args_raw(message).strip() or "doctor"
+        try:
+            if action == "export":
+                installed = self._installed_sources()
+                archive = _module_archive.encode(installed)
+                missing = sum(item["source"] is None for item in installed.values())
+                await self._client.send_file("me", archive, caption=self.strings["modules_export_caption"].format(len(installed), missing))
+                await utils.answer(message, self.strings["modules_export_saved"])
+            elif action == "import":
+                reply = await message.get_reply_message()
+                if not reply or not reply.file or reply.file.size > _module_archive.LIMIT:
+                    raise ValueError(self.strings["modules_import_reply"])
+                sources = _module_archive.decode(await reply.download_media(bytes))
+                # Verify the complete archive before executing any source.
+                for name, source in sources.items():
+                    if source is not None:
+                        compile(source, f"<import {name}>", "exec")
+                        detected = self._extract_module_name(source)
+                        if detected and detected != name:
+                            raise ValueError(self.strings["modules_class_mismatch"].format(name))
+                await utils.answer(message, self.strings["modules_importing"])
+                loaded = 0
+                failed = []
+                for name, source in sources.items():
+                    if source is None or not await self.load_module(source, None):
+                        failed.append(name)
+                    else:
+                        loaded += 1
+                await utils.answer(message, self.strings["modules_import_done"].format(
+                    loaded, utils.escape_html(", ".join(failed)) or "—",
+                ))
+            elif action == "doctor":
+                installed = self._installed_sources()
+                active = {mod.__class__.__name__: mod for mod in self.allmodules.modules}
+                failures = self.allmodules.load_failures
+                rows = []
+                for name in sorted(installed.keys() | failures.keys()):
+                    module = active.get(name)
+                    if module and getattr(module, "__ready__", False):
+                        status = self.strings["modules_running"]
+                    elif name in failures:
+                        status = self.strings["modules_failed"].format(redact(str(failures[name]))[:400])
+                    elif self.allmodules.secure_boot:
+                        status = self.strings["modules_safe_mode"]
+                    else:
+                        status = self.strings["modules_not_running"]
+                    rows.append(f"{name} — {status}")
+                text = "\n".join(rows) or self.strings["modules_empty"]
+                if len(text) > 3000:
+                    document = io.BytesIO(text.encode())
+                    document.name = "astralix-modules-doctor.txt"
+                    await self._client.send_file(message.peer_id, document, reply_to=message.id)
+                else:
+                    await utils.answer(message, self.strings["modules_doctor"].format(utils.escape_html(text)))
+            else:
+                await utils.answer(message, self.strings["modules_usage"])
+        except Exception as error:
+            logger.exception("Module archive/diagnostic operation failed")
+            await utils.answer(message, self.strings["modules_operation_failed"].format(utils.escape_html(redact(str(error)))))
 
     async def _inline__clearmodules(self, call: InlineCall):
         self.set("loaded_modules", {})
@@ -2095,7 +2179,8 @@ class LoaderMod(loader.Module):
                     raise ModuleInstallError(f"Cached module {url} was not installed")
                 if not cached:
                     self._write_module_cache(url, doc)
-            except Exception:
+            except Exception as error:
+                self.allmodules.load_failures[name or url] = str(error)
                 logger.exception("Failed to load cached module %s", url)
                 return False
 

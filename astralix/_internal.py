@@ -288,6 +288,13 @@ def restart():
     if "--sandbox" in sys.argv[1:]:
         raise SystemExit(0)
 
+    if os.environ.get("ASTRALIX_SUPERVISED") == "1":
+        from ._release_runner import RESTART
+        raise SystemExit(RESTART)
+
+    from ._release_runner import bootstrap
+    bootstrap()
+
     env = os.environ.copy()
     env.pop("ASTRALIX_DO_NOT_RESTART", None)
     env.pop("ASTRALIX_DO_NOT_RESTART2", None)

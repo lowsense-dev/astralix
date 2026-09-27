@@ -23,13 +23,10 @@ import errno
 import json
 import logging
 import os
-import subprocess
-import sys
 import time
 import typing
 
 import git
-from git import Repo
 from astralixtl.tl.functions.messages import (
     GetDialogFiltersRequest,
     UpdateDialogFilterRequest,
@@ -42,8 +39,8 @@ from astralixtl.tl.types import (
     TextWithEntities,
 )
 
-from .. import loader, utils, version
-from .._dependencies import PROJECT_ROOT, sync_command
+from .. import loader, main, utils, version
+from .._updates import Updates
 from .._internal import restart
 from ..inline.types import BotInlineCall, InlineCall
 
@@ -71,7 +68,7 @@ class UpdaterMod(loader.Module):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "GIT_ORIGIN_URL",
-                "https://github.com/lowsense-dev/astralix",
+                "https://git.astralix.cc",
                 lambda: self.strings["origin_cfg_doc"],
                 validator=loader.validators.Link(),
             ),
@@ -79,6 +76,11 @@ class UpdaterMod(loader.Module):
                 "disable_notifications",
                 doc=lambda: self.strings["_cfg_doc_disable_notifications"],
                 validator=loader.validators.Boolean(),
+            ),
+            loader.ConfigValue(
+                "startup_timeout", 180,
+                lambda: self.strings["startup_timeout_doc"],
+                validator=loader.validators.Integer(minimum=30, maximum=900),
             ),
         )
 
@@ -131,18 +133,11 @@ class UpdaterMod(loader.Module):
 
     def _get_update_state(self) -> tuple[str, str, str | typing.Literal[False]]:
         with git.Repo() as repo:
-            origin = repo.remote("origin")
+            channel = self._channel()
             now = time.monotonic()
             if now >= self._git_fetch_backoff_until:
                 if now - self._last_git_fetch >= self._GIT_FETCH_INTERVAL:
-                    logger.debug("Fetching changelog from %s", origin.url)
-                    subprocess.run(
-                        ["git", "fetch", "--quiet", "origin"],
-                        cwd=repo.working_dir,
-                        timeout=60,
-                        capture_output=True,
-                        check=False,
-                    )
+                    Updates().check(self.config["GIT_ORIGIN_URL"], channel)
                     self._last_git_fetch = now
             else:
                 logger.debug(
@@ -152,9 +147,9 @@ class UpdaterMod(loader.Module):
 
             current = repo.head.commit.hexsha
             latest = next(
-                repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                repo.iter_commits(f"refs/astralix-updates/{channel}", max_count=1)
             ).hexsha
-            commits = [*repo.iter_commits(f"HEAD..origin/{version.branch}")]
+            commits = [*repo.iter_commits(f"HEAD..refs/astralix-updates/{channel}")]
 
             return (
                 current,
@@ -177,7 +172,7 @@ class UpdaterMod(loader.Module):
         try:
             with git.Repo() as repo:
                 return next(
-                    repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                    repo.iter_commits(f"refs/astralix-updates/{self._channel()}", max_count=1)
                 ).hexsha
         except Exception:
             return ""
@@ -407,113 +402,103 @@ class UpdaterMod(loader.Module):
 
         restart()
 
-    async def download_common(self):
-        def _sync():
-            try:
-                with Repo(os.path.dirname(utils.get_base_dir())) as repo:
-                    origin = repo.remote("origin")
-                    logger.debug("Fetching updates from %s", origin.url)
-                    r = origin.pull()
-                    new_commit = repo.head.commit
-                    for info in r:
-                        if info.old_commit:
-                            for d in new_commit.diff(info.old_commit):
-                                if d.b_path in {"pyproject.toml", "uv.lock", "requirements.txt"}:
-                                    return True
-                return False
-            except git.exc.InvalidGitRepositoryError:
-                repo = Repo.init(os.path.dirname(utils.get_base_dir()))
-                with repo:
-                    origin = repo.create_remote("origin", self.config["GIT_ORIGIN_URL"])
-                    logger.debug("Fetching initial updates from %s", origin.url)
-                    origin.fetch()
-                    repo.create_head("master", origin.refs.master)
-                    repo.heads.master.set_tracking_branch(origin.refs.master)
-                    repo.heads.master.checkout(True)
-                return False
+    def _accounts(self):
+        return [client.tg_id for client in self.allclients]
 
-        return await asyncio.wait_for(
-            asyncio.to_thread(_sync),
-            timeout=120,
-        )
+    def _channel(self):
+        state = Updates().read()
+        return state["active"]["channel"] if state else version.branch
 
-    @staticmethod
-    def req_common():
-        # Now we have downloaded new code, install requirements
-        logger.debug("Installing new requirements...")
-        try:
-            subprocess.run(
-                sync_command(),
-                cwd=PROJECT_ROOT,
-                env={**os.environ, "UV_PROJECT_ENVIRONMENT": sys.prefix},
-                check=True,
-                timeout=600,
-                capture_output=True,
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            logger.exception("Req install failed")
-            raise
+    async def _show_error(self, message, error):
+        logger.exception("Release operation failed")
+        await utils.answer(message, self.strings["release_error"].format(
+            utils.escape_html(str(error))
+        ))
 
     @loader.command()
     async def update(self, message: Message):
+        """Check, prepare or switch releases: --check, --channel main|dev, --history."""
         if not self._git_available:
-            await utils.answer(
-                message,
-                "<b>Git disabled via --no-git.</b>",
-            )
+            await utils.answer(message, "<b>Git disabled via --no-git.</b>")
             return
+        args = utils.get_args_raw(message).split()
+        channel = self._channel()
         try:
-            args = utils.get_args_raw(message)
-            current = utils.get_git_hash() or ""
-            with git.Repo() as repo:
-                upcoming = next(
-                    repo.iter_commits(f"origin/{version.branch}", max_count=1)
-                ).hexsha
-            if (
-                "-f" not in args
-                and self.inline.init_complete
-                and await self.inline.form(
-                    message=message,
-                    text=(
-                        self.strings["update_confirm"].format(
-                            current, current[:8], upcoming, upcoming[:8]
-                        )
-                        if upcoming != current
-                        else self.strings["no_update"]
-                    ),
-                    reply_markup=[
-                        {
-                            "text": self.strings["btn_update"],
-                            "callback": self.inline_update,
-                            "style": "primary",
-                        },
-                        {
-                            "text": self.strings["cancel"],
-                            "action": "close",
-                            "style": "danger",
-                        },
-                    ],
-                )
+            if "--channel" in args:
+                index = args.index("--channel")
+                channel = args[index + 1]
+                del args[index:index + 2]
+            if channel not in {"main", "dev"} or any(
+                arg not in {"--check", "--history", "-f"} for arg in args
             ):
+                raise ValueError(self.strings["update_usage"])
+            if "--history" in args:
+                await self.updatehistory(message)
                 return
-        except Exception:
-            logger.debug("Update confirmation unavailable", exc_info=True)
-        await self.inline_update(message)
+            report = await asyncio.to_thread(
+                Updates().check, self.config["GIT_ORIGIN_URL"], channel
+            )
+            text = self.strings["release_check"].format(
+                channel, report["current"][:12], report["target"][:12],
+                utils.escape_html(report["changes"] or self.strings["release_no_changes"]),
+                utils.escape_html(report["dependencies"] or self.strings["release_no_changes"]),
+                utils.escape_html(report["dirty"] or self.strings["release_clean"]),
+            )
+            if "--check" in args:
+                await utils.answer(message, text)
+                return
+            if report["dirty"]:
+                raise RuntimeError(self.strings["release_dirty"])
+            if report["target"] == report["current"] and channel == report["branch"]:
+                await utils.answer(message, self.strings["release_current"])
+                return
+            if "-f" not in args and self.inline.init_complete:
+                if await self.inline.form(message=message, text=text + "\n\n" + self.strings["release_confirm"],
+                    reply_markup=[
+                        {"text": self.strings["btn_update"], "callback": self.inline_update,
+                         "args": (False, channel), "style": "primary"},
+                        {"text": self.strings["cancel"], "action": "close"},
+                    ]):
+                    return
+            await self.inline_update(message, channel=channel)
+        except Exception as error:
+            await self._show_error(message, error)
 
-    async def inline_update(
-        self,
-        msg_obj: InlineCall | Message,
-        hard: bool = False,
-    ):
+    async def inline_update(self, msg_obj: InlineCall | Message, hard=False, channel=None):
         if not self._git_available:
-            logger.warning("Git disabled via --no-git; update skipped")
             return
+        manager = Updates()
+        prepared = False
         try:
-            if await self.download_common():
-                await asyncio.to_thread(self.req_common)
+            msg_obj = await utils.answer(msg_obj, self.strings["release_preparing"])
+            release = await asyncio.to_thread(
+                manager.prepare, self.config["GIT_ORIGIN_URL"], channel or self._channel(),
+                main.BASE_DIR, self._accounts(), self.config["startup_timeout"],
+            )
+            if release is None:
+                await utils.answer(msg_obj, self.strings["release_current"])
+                return
+            prepared = True
             await self.restart_common(msg_obj)
-        except Exception:
-            logger.exception("Update failed")
+        except Exception as error:
+            if prepared:
+                await asyncio.to_thread(manager.cancel_pending)
+            await self._show_error(msg_obj, error)
+
+    @loader.command()
+    async def updatehistory(self, message: Message):
+        """Show recent release operations and their results."""
+        state = Updates().read() or {}
+        lines = [
+            f"<code>{time.strftime('%Y-%m-%d %H:%M', time.localtime(item['time']))}</code>"
+            f" · <code>{utils.escape_html(item['commit'][:12])}</code>"
+            f" · {utils.escape_html(item['channel'])} · "
+            f"{self.strings['release_status_' + item['status']]}"
+            for item in state.get("history", [])[-12:]
+        ]
+        await utils.answer(message, self.strings["release_history"].format(
+            "\n".join(lines) or self.strings["release_no_history"]
+        ))
 
     @loader.command()
     async def source(self, message: Message):
@@ -721,49 +706,38 @@ class UpdaterMod(loader.Module):
 
     @loader.command()
     async def rollback(self, message: Message):
-        if not (args := utils.get_args_raw(message)).isdigit():
-            await utils.answer(message, self.strings["invalid_args"])
+        """Return to the previous working release; --restore-data also restores configs."""
+        args = utils.get_args_raw(message).split()
+        if any(arg not in {"--restore-data", "-f"} for arg in args):
+            await utils.answer(message, self.strings["rollback_usage"])
             return
-        if int(args) > 10:
-            await utils.answer(message, self.strings["rollback_too_far"])
-            return
-        await self.inline.form(
-            message=message,
-            text=self.strings["rollback_confirm"].format(num=args),
-            reply_markup=[
-                [
-                    {
-                        "text": "✅",
-                        "callback": self.rollback_confirm,
-                        "args": [args],
-                        "style": "success",
-                    }
+        restore = "--restore-data" in args
+        if "-f" not in args and self.inline.init_complete:
+            if await self.inline.form(
+                message=message,
+                text=self.strings["release_rollback_data" if restore else "release_rollback_confirm"],
+                reply_markup=[
+                    {"text": self.strings["btn_restart"], "callback": self.rollback_confirm,
+                     "args": (restore,), "style": "primary"},
+                    {"text": self.strings["cancel"], "action": "close"},
                 ],
-                [
-                    {
-                        "text": "❌",
-                        "action": "close",
-                        "style": "danger",
-                    }
-                ],
-            ],
-        )
+            ):
+                return
+        await self.rollback_confirm(message, restore)
 
-    async def rollback_confirm(self, call: InlineCall, number: int):
-        number = int(number)
-        if not 1 <= number <= 10:
-            raise ValueError("Rollback count must be between 1 and 10")
-        await utils.answer(call, self.strings["rollback_process"].format(num=number))
-        utils.ensure_child_watcher()
-        process = await asyncio.create_subprocess_exec(
-            "git", "reset", "--hard", f"HEAD~{number}",
-            cwd=PROJECT_ROOT,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        )
-        _, error = await process.communicate()
-        if process.returncode:
-            raise RuntimeError("Git rollback failed: " + error.decode(errors="replace"))
-        await self.restart_common(call)
+    async def rollback_confirm(self, call: InlineCall | Message, restore_data=False):
+        manager = Updates()
+        prepared = False
+        try:
+            await asyncio.to_thread(
+                manager.rollback, self._accounts(), restore_data, self.config["startup_timeout"]
+            )
+            prepared = True
+            await self.restart_common(call)
+        except Exception as error:
+            if prepared:
+                await asyncio.to_thread(manager.cancel_pending)
+            await self._show_error(call, error)
 
     async def ubstop_func(self, call: Message | InlineCall):
         await utils.answer(
