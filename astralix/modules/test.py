@@ -126,9 +126,12 @@ class TestMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/lowsense-dev/astralix/refs/heads/main/assets/ping-banner.png",
+                "",
                 lambda: self.strings["banner_url"],
-                validator=loader.validators.RandomLink(),
+                validator=loader.validators.Union(
+                    loader.validators.RandomLink(),
+                    loader.validators.String(length=0),
+                ),
             ),
             loader.ConfigValue(
                 "quote_media",
@@ -469,3 +472,38 @@ class TestMod(loader.Module):
         logger.debug("Bot logging installed for %s", self.logchat)
 
         self._pass_config_to_logger()
+
+    @loader.command()
+    async def restart(self, message: Message):
+        args = utils.get_args_raw(message)
+        secure_boot = any(trigger in args for trigger in {"--secure-boot", "-sb"})
+        try:
+            if (
+                "-f" in args
+                or not self.inline.init_complete
+                or not await self.inline.form(
+                    message=message,
+                    text=self.strings[
+                        "secure_boot_confirm" if secure_boot else "restart_confirm"
+                    ],
+                    reply_markup=[
+                        {
+                            "text": self.strings["btn_restart"],
+                            "callback": self.inline_restart,
+                            "args": (secure_boot,),
+                            "style": "primary",
+                        },
+                        {
+                            "text": self.strings["cancel"],
+                            "action": "close",
+                            "style": "danger",
+                        },
+                    ],
+                )
+            ):
+                raise
+        except Exception:
+            await self.lookup("Updater").restart_common(message, secure_boot)
+
+    async def inline_restart(self, call: InlineCall, secure_boot: bool = False):
+        await self.lookup("Updater").restart_common(call, secure_boot=secure_boot)

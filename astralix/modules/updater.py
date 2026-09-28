@@ -278,41 +278,6 @@ class UpdaterMod(loader.Module):
 
         await utils.answer(message, self.strings["changelog"].format(changelog))
 
-    @loader.command()
-    async def restart(self, message: Message):
-        args = utils.get_args_raw(message)
-        secure_boot = any(trigger in args for trigger in {"--secure-boot", "-sb"})
-        try:
-            if (
-                "-f" in args
-                or not self.inline.init_complete
-                or not await self.inline.form(
-                    message=message,
-                    text=self.strings[
-                        "secure_boot_confirm" if secure_boot else "restart_confirm"
-                    ],
-                    reply_markup=[
-                        {
-                            "text": self.strings["btn_restart"],
-                            "callback": self.inline_restart,
-                            "args": (secure_boot,),
-                            "style": "primary",
-                        },
-                        {
-                            "text": self.strings["cancel"],
-                            "action": "close",
-                            "style": "danger",
-                        },
-                    ],
-                )
-            ):
-                raise
-        except Exception:
-            await self.restart_common(message, secure_boot)
-
-    async def inline_restart(self, call: InlineCall, secure_boot: bool = False):
-        await self.restart_common(call, secure_boot=secure_boot)
-
     @staticmethod
     def _serialize_inline_message_id(
         inline_message_id: str | InputBotInlineMessageID | InputBotInlineMessageID64,

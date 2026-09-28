@@ -130,6 +130,22 @@ class Evaluator(loader.Module):
             self.db = real_db
 
         if skip_output:
+            with contextlib.suppress(MessageIdInvalidError):
+                await utils.answer(
+                    message,
+                    self.strings["eval_py"].format(
+                        "4985626654563894116",
+                        "python",
+                        utils.escape_html(self.censor(args)),
+                    )
+                    + self.strings["output_off"]
+                    + (
+                        self.strings["time_exec"].format(
+                            round(time.time() - start_time, 2)
+                        )
+                    ),
+                )
+
             return
 
         if callable(getattr(result, "stringify", None)):
