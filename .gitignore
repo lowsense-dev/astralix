@@ -158,7 +158,6 @@ config.json
 !assets/astralix.png
 !assets/astralix-bot.png
 !assets/astralix-chat.png
-!assets/*-banner.png
 /site/
 *.webp
 *.webm

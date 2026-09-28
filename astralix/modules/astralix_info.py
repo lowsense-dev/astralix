@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 
 
 @loader.tds
-class AstralixInfoMod(loader.Module):
+class AstralixMod(loader.Module):
     """Show userbot info"""
 
-    strings = {"name": "AstralixInfo"}
+    strings = {"name": "Astralix"}
 
     def __init__(self):
         self.config = loader.ModuleConfig(
@@ -57,7 +57,7 @@ class AstralixInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/lowsense-dev/astralix/refs/heads/main/assets/info-banner.png",
+                "",
                 lambda: self.strings["_cfg_banner"],
                 validator=loader.validators.String(),
             ),
@@ -284,3 +284,45 @@ class AstralixInfoMod(loader.Module):
                 ),
                 reply_to=getattr(message, "reply_to_msg_id", None),
             )
+
+    @loader.command(
+        ru_doc="Информация об astralix",
+        en_doc="Information of astralix",
+        ua_doc="Інформація про astralix",
+        de_doc="Informationen über astralix",
+    )
+    async def astralixcmd(self, message: Message):
+
+        if self.config["rich_mode"]:
+            rich_message = self.strings["rich_astralix_message"].format(
+                platform="astralix",
+                version=".".join(map(str, version.__version__)),
+                build=utils.get_commit_url(),
+                htl_version=astralixtl.__version__,
+                layer=astralixtl.tl.alltlobjects.LAYER,
+                current_user=getpass.getuser(),
+                banner_url=utils.escape_html(str(self.config["banner_url"] or "")),
+                img=(
+                    '<figure><img src="{}"/></figure>'.format(
+                        utils.escape_html(str(self.config["banner_url"]))
+                    ) if self.config["banner_url"] else ""
+                ),
+            )
+            await utils.answer_with_media_fallback(
+                message,
+                rich_message=rich_message,
+                reply_to=getattr(message, "reply_to_msg_id", None),
+            )
+            return
+
+        await utils.answer_with_media_fallback(
+            message,
+            self.strings["astralix"].format(
+                "astralix",
+                *version.__version__,
+                utils.get_commit_url(),
+                f"{astralixtl.__version__} #{astralixtl.tl.alltlobjects.LAYER}",
+            ),
+            file=self.config["banner_url"] or None,
+            reply_to=getattr(message, "reply_to_msg_id", None),
+        )
