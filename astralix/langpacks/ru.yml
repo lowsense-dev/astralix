@@ -721,6 +721,7 @@ eval:
   no_compiler: "<b>Компилятор {1} не установлен на системе.</b>"
   eval_result: "\n\n<b> Результат:</b>\n<pre><code class=\"language-{}\">{}</code></pre>"
   print_outp: "\n\n<b> Вывод print():</b>\n<pre><code class=\"language-{}\">{}</code></pre>"
+  output_off: "\n\n<b>Вывод отключён флагом -so</b>"
   _cmd_doc_e: "Выполняет Python код"
   _cmd_doc_ebf: "Выполняет Brainf*ck код"
   _cmd_doc_ec: "Выполняет C код"

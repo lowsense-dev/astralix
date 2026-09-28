@@ -739,6 +739,7 @@ eval:
   time_exec: "\n<b>Execution time: {}s</b>"
   eval_result: "\n\n<b> Result:</b>\n<pre><code class=\"language-{}\">{}</code></pre>"
   print_outp: "\n\n<b> Print Result:</b>\n<pre><code class=\"language-{}\">{}</code></pre>"
+  output_off: "\n\n<b>Output is turned off by -so flag</b>"
   _cmd_doc_e: "Evaluates python code"
   _cmd_doc_ebf: "Evaluates Brainf*ck code"
   _cmd_doc_ec: "Evaluates C code"
