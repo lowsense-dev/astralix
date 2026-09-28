@@ -301,12 +301,6 @@ class AstralixMod(loader.Module):
                 htl_version=astralixtl.__version__,
                 layer=astralixtl.tl.alltlobjects.LAYER,
                 current_user=getpass.getuser(),
-                banner_url=utils.escape_html(str(self.config["banner_url"] or "")),
-                img=(
-                    '<figure><img src="{}"/></figure>'.format(
-                        utils.escape_html(str(self.config["banner_url"]))
-                    ) if self.config["banner_url"] else ""
-                ),
             )
             await utils.answer_with_media_fallback(
                 message,
@@ -323,6 +317,5 @@ class AstralixMod(loader.Module):
                 utils.get_commit_url(),
                 f"{astralixtl.__version__} #{astralixtl.tl.alltlobjects.LAYER}",
             ),
-            file=self.config["banner_url"] or None,
             reply_to=getattr(message, "reply_to_msg_id", None),
         )

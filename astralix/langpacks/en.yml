@@ -575,7 +575,7 @@ astralix_info:
   show_preview_in_help: "Show # meta banner like preview in help [module] ?"
 
   astralix: "<blockquote><b>┌ [ {0} Userbot ]</b>\n<b>└ [ Version ] :</b> {1}.{2}.{3}</blockquote>\n<blockquote expandable><b>┌ [ Commit ] :</b> {4}\n<b>└ [ astralix-tl ] :</b> {5}</blockquote>\n<blockquote><b>└ [ Source ] :</b> <a href=\"https://github.com/lowsense-dev/astralix\">GitHub</a></blockquote>"
-  rich_astralix_message: "{img}<h1>astralix</h1><p><code>{version}</code> · Your Telegram. In your own orbit.</p><hr><p><b>Build</b> {build}<br><b>astralix-tl</b> <code>{htl_version}</code><br><b>Telegram API</b> <code>{layer}</code></p><p><a href=\"https://github.com/lowsense-dev/astralix\">Source code ↗</a></p>"
+  rich_astralix_message: "<h1>astralix</h1><p><code>{version}</code> · Your Telegram. In your own orbit.</p><hr><p><b>Build</b> {build}<br><b>astralix-tl</b> <code>{htl_version}</code><br><b>Telegram API</b> <code>{layer}</code></p><p><a href=\"https://github.com/lowsense-dev/astralix\">Source code ↗</a></p>"
   _cmd_doc_astralix: "Get astralix version"
 
   name: Astralix
