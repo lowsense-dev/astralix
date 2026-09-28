@@ -400,7 +400,7 @@ settings:
   builtin: "Built-in"
   external: "External"
   libraries: "Libraries"
-  _cmd_doc_config: "Configure modules"
+  _cmd_doc_config: "Configure modules; -r|--reset &lt;module&gt; &lt;option&gt; resets a value to default"
   _cmd_doc_fconfig: "&lt;module_name&gt; &lt;property_name&gt; &lt;config_value&gt; - set the config value for the module"
 inline_stuff:
   name: "InlineStuff"

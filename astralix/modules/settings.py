@@ -2798,12 +2798,53 @@ class CoreMod(loader.Module):
 
         await utils.answer(message, "\n".join(lines))
 
+    async def _reset_config_option(self, message: Message, args: list[str]):
+        if len(args) < 2:
+            await utils.answer(message, self.strings["cfg_args"])
+            return
+
+        mod_name, instance, _ = self._resolve_configurable(args[0])
+        if not mod_name or not instance:
+            await utils.answer(message, self.strings["no_mod"])
+            return
+
+        if len(args) == 2 and args[1] in instance.config:
+            option = args[1]
+        elif len(args) == 3 and (
+            config_opt := self._category_option(instance, args[1], args[2])
+        ):
+            option = config_opt
+        else:
+            await utils.answer(message, self.strings["no_option"])
+            return
+
+        instance.config[option] = instance.config.getdef(option)
+        await utils.answer(
+            message,
+            self.strings[
+                "option_reset"
+                if isinstance(instance, loader.Module)
+                else "option_reset_lib"
+            ].format(
+                utils.escape_html(option),
+                utils.escape_html(mod_name),
+                self._get_value(mod_name, option),
+            ),
+        )
+
     async def _configcmd_impl(self, message: Message):
         raw = utils.get_args_raw(message).strip()
         args_s = raw.split()
 
         if not args_s:
             await self.inline__choose_category(message)
+            return
+
+        if any(arg in {"-r", "--reset"} for arg in args_s):
+            await self._reset_config_option(
+                message,
+                [arg for arg in args_s if arg not in {"-r", "--reset"}],
+            )
             return
 
         mod_name, instance, obj_type = self._resolve_configurable(args_s[0])
