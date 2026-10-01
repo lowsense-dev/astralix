@@ -136,8 +136,8 @@ astralix_plugin_security:
   _cmd_doc_unexternal: <module> - Grant full userbot access for module
 terminal:
   rich_empty: "📭 No content"
-  _cfg_rich_mode: "Show the command as a code block and non-empty stdout/stderr as collapsible sections in a Rich message."
-  rich_output: '<h2>💻 Terminal</h2><p>⌨️ Command</p><pre><code>{command}</code></pre>'
+  _cfg_rich_mode: "Show the command as inline code and non-empty stdout/stderr as collapsible sections in a Rich message."
+  rich_output: '<h2>💻 Terminal</h2><p>⌨️ Command: <code>{command}</code></p>'
   rich_stdout: '<details><summary>📤 Stdout</summary><pre><code>{}</code></pre></details>'
   rich_stderr: '<details><summary>⚠️ Stderr</summary><pre><code>{}</code></pre></details>'
   rich_running: '<p>⏳ Running…</p>'
