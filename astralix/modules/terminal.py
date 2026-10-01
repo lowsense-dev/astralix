@@ -342,10 +342,15 @@ class InlineMessageEditor:
 
     def render_text(self):
         if self.config["rich_mode"]:
+            def content(value):
+                return utils.escape_html(
+                    value if value.strip() else self.strings["rich_empty"]
+                )
+
             text = self.strings["rich_output"].format(
-                command=utils.escape_html(self.command),
-                stdout=utils.escape_html(self.stdout[-2048:]),
-                stderr=utils.escape_html(self.stderr[-1024:]),
+                command=content(self.command),
+                stdout=content(self.stdout[-2048:]),
+                stderr=content(self.stderr[-1024:]),
             )
             text += (
                 self.strings["rich_finished"].format(
