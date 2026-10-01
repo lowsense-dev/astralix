@@ -814,7 +814,13 @@ class UpdaterMod(loader.Module):
     async def ubstop_func(self, call: Message | InlineCall):
         await utils.answer(
             call,
-            self.strings["ub_stop"].format(emoji=utils.get_platform_emoji()),
+            self.strings["ub_stop"].format(
+                emoji=(
+                    utils.get_platform_emoji()
+                    if self._client.astralix_me.premium
+                    else "astralix"
+                ),
+            ),
         )
 
         exit()

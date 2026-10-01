@@ -73,8 +73,13 @@ def get_named_platform_emoji() -> str:
 
 
 def get_platform_emoji() -> str:
-    """Return the plain project name, without the upstream custom emoji logo."""
-    return "astralix"
+    """Return the custom emoji logo; callers must check account Premium status."""
+    return (
+        '<tg-emoji emoji-id=5325936150584533641>🧩</tg-emoji>'
+        '<tg-emoji emoji-id=5325806588601082868>🧩</tg-emoji>'
+        '<tg-emoji emoji-id=5327888565407885172>🧩</tg-emoji>'
+        '<tg-emoji emoji-id=5327870810013083564>🧩</tg-emoji>'
+    )
 
 
 def uptime() -> int:
