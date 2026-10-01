@@ -88,9 +88,10 @@ class MessageEditor:
         if self.rc is not None:
             text += self.strings["finished"].format(utils.escape_html(str(self.rc)))
 
-        text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
+        if self.stdout[-2048:].strip():
+            text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
         stderr = utils.escape_html(self.stderr[max(len(self.stderr) - 1024, 0) :])
-        text += self.strings["stderr"].format(stderr) if stderr else ""
+        text += self.strings["stderr"].format(stderr) if stderr.strip() else ""
 
         if self.rc is not None:
             exec_time = time.time() - self.start_time
@@ -349,9 +350,13 @@ class InlineMessageEditor:
 
             text = self.strings["rich_output"].format(
                 command=content(self.command),
-                stdout=content(self.stdout[-2048:]),
-                stderr=content(self.stderr[-1024:]),
             )
+            for key, output in (
+                ("rich_stdout", self.stdout[-2048:]),
+                ("rich_stderr", self.stderr[-1024:]),
+            ):
+                if output.strip():
+                    text += self.strings[key].format(utils.escape_html(output))
             text += (
                 self.strings["rich_finished"].format(
                     code=self.rc, seconds=round(time.time() - self.start_time, 2),
@@ -365,9 +370,10 @@ class InlineMessageEditor:
         if self.rc is not None:
             text += self.strings["finished"].format(utils.escape_html(str(self.rc)))
 
-        text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
+        if self.stdout[-2048:].strip():
+            text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
         stderr = utils.escape_html(self.stderr[max(len(self.stderr) - 1024, 0) :])
-        text += self.strings["stderr"].format(stderr) if stderr else ""
+        text += self.strings["stderr"].format(stderr) if stderr.strip() else ""
 
         if self.rc is not None:
             exec_time = time.time() - self.start_time

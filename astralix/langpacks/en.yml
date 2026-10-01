@@ -136,8 +136,10 @@ astralix_plugin_security:
   _cmd_doc_unexternal: <module> - Grant full userbot access for module
 terminal:
   rich_empty: "📭 No content"
-  _cfg_rich_mode: "Show terminal output as a Rich message with collapsible command, stdout and stderr sections."
-  rich_output: '<h2>💻 Terminal</h2><details><summary>⌨️ Command</summary><pre><code>{command}</code></pre></details><details><summary>📤 Stdout</summary><pre><code>{stdout}</code></pre></details><details><summary>⚠️ Stderr</summary><pre><code>{stderr}</code></pre></details>'
+  _cfg_rich_mode: "Show the command as a code block and non-empty stdout/stderr as collapsible sections in a Rich message."
+  rich_output: '<h2>💻 Terminal</h2><p>⌨️ Command</p><pre><code>{command}</code></pre>'
+  rich_stdout: '<details><summary>📤 Stdout</summary><pre><code>{}</code></pre></details>'
+  rich_stderr: '<details><summary>⚠️ Stderr</summary><pre><code>{}</code></pre></details>'
   rich_running: '<p>⏳ Running…</p>'
   rich_finished: '<p>🏁 Exit code: <code>{code}</code><br>⏱ Execution time: {seconds}s</p>'
   sticky_sessions_doc: "Keep the working directory, variables and shell functions between commands. Use the Next command button to continue in the same terminal card. State lasts until a session reset or userbot restart. Off by default; disabling clears state after active commands finish."

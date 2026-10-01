@@ -101,8 +101,10 @@ astralix_security:
   li: <b><a href="{}">{}</a></b>
 terminal:
   rich_empty: "📭 Нет содержимого"
-  _cfg_rich_mode: "Показывать вывод терминала как Rich-сообщение со сворачиваемыми блоками команды, stdout и stderr."
-  rich_output: '<h2>💻 Терминал</h2><details><summary>⌨️ Команда</summary><pre><code>{command}</code></pre></details><details><summary>📤 Stdout</summary><pre><code>{stdout}</code></pre></details><details><summary>⚠️ Stderr</summary><pre><code>{stderr}</code></pre></details>'
+  _cfg_rich_mode: "Показывать команду блоком кода, а непустые stdout/stderr — сворачиваемыми секциями Rich-сообщения."
+  rich_output: '<h2>💻 Терминал</h2><p>⌨️ Команда</p><pre><code>{command}</code></pre>'
+  rich_stdout: '<details><summary>📤 Stdout</summary><pre><code>{}</code></pre></details>'
+  rich_stderr: '<details><summary>⚠️ Stderr</summary><pre><code>{}</code></pre></details>'
   rich_running: '<p>⏳ Выполняется…</p>'
   rich_finished: '<p>🏁 Код выхода: <code>{code}</code><br>⏱ Время выполнения: {seconds}с</p>'
   sticky_sessions_doc: "Сохранять рабочую папку, переменные и shell-функции между командами. Кнопка «Следующая команда» продолжает работу в той же карточке терминала. Состояние хранится до сброса сессии или перезапуска юзербота. По умолчанию выключено; отключение сбрасывает состояние после завершения активных команд."
