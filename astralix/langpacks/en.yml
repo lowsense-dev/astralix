@@ -426,12 +426,12 @@ inline_stuff:
 
   _cmd_doc_ch_bot_token: <token> - Change inline bot token
 test:
-  rich_ping_message: "{img}<blockquote><b>┌ [ Ping ] :</b> {ping} ms<br><b>└ [ Uptime ] :</b> {uptime}</blockquote>"
-  ping_message: "<blockquote><b>┌ [ Ping ] :</b> {ping} ms\n<b>└ [ Uptime ] :</b> {uptime}</blockquote>"
+  rich_ping_message: "{img}<b>{title}</b><br><blockquote><b>┌ [ Ping ] :</b> {ping} ms<br><b>└ [ Uptime ] :</b> {uptime}</blockquote>"
+  ping_message: "<b>{title}</b>\n<blockquote><b>┌ [ Ping ] :</b> {ping} ms\n<b>└ [ Uptime ] :</b> {uptime}</blockquote>"
   name: "Tester"
   set_loglevel: "⌨️ <b>Please specify verbosity as an integer or string</b>"
   no_logs: "📭 <b>You don't have any logs at verbosity</b> <code>{}</code><b>.</b>"
-  configping: "Your custom text. You can use placeholders: {ping} - That's your ping. {uptime} - It's your uptime. {ping_hint} - This is the same hint as in the astralix module, it is chosen with random chance, also you can specify this hint in the config. You can use the {hostname} placeholder if you need the hostname of your server, {img} - banner image (rich mode only)"
+  configping: "Custom text. Placeholders: {title} - astralix Premium logo or plain name; {ping} - ping; {uptime} - uptime; {ping_hint} - random hint from config; {hostname} - server hostname; {img} - banner image (rich mode only)."
   configpingph: "Custom placeholders: {}"
   hint: "Set a hint"
   ping_emoji: "Emoji that appears when ping does not increase significantly"
@@ -557,8 +557,8 @@ help:
   rich_commands: "⌨️ Commands"
 astralix_info:
   missing_placeholder: "Missing {placeholder} placeholder"
-  info_message: "<blockquote><b>┌ [ Owner ] :</b> {me}\n<b>└ [ astralix Userbot ]</b></blockquote>\n<blockquote expandable><b>┌ [ CPU Usage ] :</b> {cpu_usage}%\n<b>├ [ RAM Usage ] :</b> {ram_usage}\n<b>└ [ OS ] :</b> {os}</blockquote>\n<blockquote expandable><b>┌ [ Version ] :</b> {version}\n<b>├ [ Commit ] :</b> {build}\n<b>└ [ Uptime ] :</b> {uptime}</blockquote>"
-  rich_info_message: "{img}<blockquote><b>┌ [ Owner ] :</b> {me}<br><b>└ [ astralix Userbot ]</b></blockquote><blockquote expandable><b>┌ [ CPU Usage ] :</b> {cpu_usage}%<br><b>├ [ RAM Usage ] :</b> {ram_usage}<br><b>└ [ OS ] :</b> {os}</blockquote><blockquote expandable><b>┌ [ Version ] :</b> {version}<br><b>├ [ Commit ] :</b> {build}<br><b>└ [ Uptime ] :</b> {uptime}</blockquote>"
+  info_message: "<blockquote><b>┌ [ Owner ] :</b> {me}\n<b>└ [ {title} Userbot ]</b></blockquote>\n<blockquote expandable><b>┌ [ CPU Usage ] :</b> {cpu_usage}%\n<b>├ [ RAM Usage ] :</b> {ram_usage}\n<b>└ [ OS ] :</b> {os}</blockquote>\n<blockquote expandable><b>┌ [ Version ] :</b> {version}\n<b>├ [ Commit ] :</b> {build}\n<b>└ [ Uptime ] :</b> {uptime}</blockquote>"
+  rich_info_message: "{img}<blockquote><b>┌ [ Owner ] :</b> {me}<br><b>└ [ {title} Userbot ]</b></blockquote><blockquote expandable><b>┌ [ CPU Usage ] :</b> {cpu_usage}%<br><b>├ [ RAM Usage ] :</b> {ram_usage}<br><b>└ [ OS ] :</b> {os}</blockquote><blockquote expandable><b>┌ [ Version ] :</b> {version}<br><b>├ [ Commit ] :</b> {build}<br><b>└ [ Uptime ] :</b> {uptime}</blockquote>"
   non_detectable: "Unavailable"
   ping_emoji: "emoji for ping in your info"
   send_info: "Send userbot info"
@@ -567,11 +567,12 @@ astralix_info:
   update_required: "Available · <code>{prefix}update</code>"
   switchinfo_on: "Image Info turned on successfully"
   switchinfo_off: "Image Info turned off successfully"
-  _cfg_cst_msg: "Custom message for info. May contain {me}, {version}, {build}, {prefix}, {platform}, {upd}, {uptime}, {cpu_usage}, {ram_usage}, {branch}, {hostname}, {user}, {os}, {kernel}, {cpu}, {ping}, {python_ver}, {atl_version}, {git_status}, {img} keywords"
+  _cfg_cst_msg: "Custom message for info. {title} is the astralix Premium logo or plain name. Other placeholders: {me}, {version}, {build}, {prefix}, {platform}, {upd}, {uptime}, {cpu_usage}, {ram_usage}, {branch}, {hostname}, {user}, {os}, {kernel}, {cpu}, {ping}, {python_ver}, {atl_version}, {git_status}, {img}"
   _cfg_cst_ph: "Custom placeholders: {}"
   _cfg_cst_btn: "Custom button for info. Leave empty to remove button"
   _cfg_banner: "URL to image banner"
   _cfg_rich_mode: "Show info as a Rich message."
+  _cfg_atx_rich_mode: "Show the astralix command as a Rich message."
   no_font: "Where is the link or reply to the font?"
   no_banner: "<b>Banner unavailable</b>\nCheck the image URL: <code>{link}</code>"
   font_installed: "<b>Font installed successfully!</b>\n<i>You can now enjoy using it.</i>"
@@ -584,7 +585,7 @@ astralix_info:
   show_preview_in_help: "Show # meta banner like preview in help [module] ?"
 
   astralix: "<blockquote><b>┌ [ {0} Userbot ]</b>\n<b>└ [ Version ] :</b> {1}.{2}.{3}</blockquote>\n<blockquote expandable><b>┌ [ Commit ] :</b> {4}\n<b>└ [ astralix-tl ] :</b> {5}</blockquote>\n<blockquote><b>└ [ Source ] :</b> <a href=\"https://github.com/lowsense-dev/astralix\">GitHub</a></blockquote>"
-  rich_astralix_message: "<h1>astralix</h1><p><code>{version}</code> · Your Telegram. In your own orbit.</p><hr><p><b>Build</b> {build}<br><b>astralix-tl</b> <code>{htl_version}</code><br><b>Telegram API</b> <code>{layer}</code></p><p><a href=\"https://github.com/lowsense-dev/astralix\">Source code ↗</a></p>"
+  rich_astralix_message: "<h1>{title}</h1><p><code>{version}</code> · Your Telegram. In your own orbit.</p><hr><p><b>Build</b> {build}<br><b>astralix-tl</b> <code>{htl_version}</code><br><b>Telegram API</b> <code>{layer}</code></p><p><a href=\"https://github.com/lowsense-dev/astralix\">Source code ↗</a></p>"
   _cmd_doc_astralix: "Get astralix version"
 
   name: Astralix

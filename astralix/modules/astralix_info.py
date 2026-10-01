@@ -85,6 +85,12 @@ class AstralixMod(loader.Module):
                 lambda: self.strings["_cfg_rich_mode"],
                 validator=loader.validators.Boolean(),
             ),
+            loader.ConfigValue(
+                "atx_rich_mode",
+                True,
+                lambda: self.strings["_cfg_atx_rich_mode"],
+                validator=loader.validators.Boolean(),
+            ),
         )
 
     def _get_cpu_info(self) -> str | None:
@@ -170,6 +176,10 @@ class AstralixMod(loader.Module):
 
     def _get_placeholder_providers(self, template_key):
         return {
+            "title": lambda: (
+                utils.get_platform_emoji()
+                if self._client.astralix_me.premium else "astralix"
+            ),
             "banner_url": lambda: self.config["banner_url"],
             "me": lambda: (
                 '<b><a href="tg://user?id={}">{}</a></b>'.format(
@@ -292,9 +302,13 @@ class AstralixMod(loader.Module):
         de_doc="Informationen über astralix",
     )
     async def astralixcmd(self, message: Message):
-
-        if self.config["rich_mode"]:
+        title = (
+            utils.get_platform_emoji()
+            if self._client.astralix_me.premium else "astralix"
+        )
+        if self.config["atx_rich_mode"]:
             rich_message = self.strings["rich_astralix_message"].format(
+                title=title,
                 platform="astralix",
                 version=".".join(map(str, version.__version__)),
                 build=utils.get_commit_url(),
@@ -312,7 +326,7 @@ class AstralixMod(loader.Module):
         await utils.answer_with_media_fallback(
             message,
             self.strings["astralix"].format(
-                "astralix",
+                title,
                 *version.__version__,
                 utils.get_commit_url(),
                 f"{astralixtl.__version__} #{astralixtl.tl.alltlobjects.LAYER}",
