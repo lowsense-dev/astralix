@@ -275,15 +275,45 @@ class CoreMod(loader.Module):
         )
 
     @loader.command()
+    async def inlinecall(self, message: Message):
+        query = utils.get_args_raw(message).strip()
+        command = query.split(maxsplit=1)[0].lower() if query else ""
+        handler = self.allmodules.inline_handlers.get(command)
+        if handler is None:
+            await utils.answer(
+                message, self.strings["no_command"].format(utils.escape_html(command)),
+            )
+            return
+        if not await self.inline.check_inline_security(func=handler, user=message.sender_id):
+            return
+        try:
+            results = await self._client.inline_query(self.inline.bot_username, query)
+            if not results:
+                await utils.answer(message, self.strings["inline_alias_empty"])
+                return
+            await results[0].click(
+                utils.get_chat_id(message),
+                reply_to=message.reply_to_msg_id or utils.get_topic(message),
+            )
+        except Exception:
+            logger.exception("Failed to send inline command result")
+            await utils.answer(message, self.strings["inline_alias_failed"])
+            return
+        if message.out:
+            await message.delete()
+
+    @loader.command()
     async def aliases(self, message: Message):
+        inline = utils.get_args_raw(message).strip() in {"-i", "--inline"}
+        aliases = self.get("inline_aliases", {}) if inline else self.allmodules.aliases
         await utils.answer(
             message,
             self.strings["aliases"]
             + "<blockquote expandable>"
             + "\n".join(
                 [
-                    (self.config["alias_emoji"] + f" <code>{i}</code> &lt;- {y}")
-                    for i, y in self.allmodules.aliases.items()
+                    (self.config["alias_emoji"] + f" <code>{utils.escape_html(i)}</code> &lt;- {utils.escape_html(y)}")
+                    for i, y in aliases.items()
                 ]
             )
             + "</blockquote>",
@@ -293,6 +323,13 @@ class CoreMod(loader.Module):
     async def addalias(self, message: Message):
 
         args_raw = utils.get_args_raw(message)
+        parts = args_raw.split(maxsplit=1)
+        inline = bool(parts and parts[0] in {"-i", "--inline"})
+        if inline:
+            args_raw = parts[1] if len(parts) > 1 else ""
+        storage_key = "inline_aliases" if inline else "aliases"
+        commands = self.allmodules.inline_handlers if inline else self.allmodules.commands
+        existing_aliases = self.get(storage_key, {}) if inline else self.allmodules.aliases
         if not args_raw:
             await utils.answer(message, self.strings["alias_args"])
             return
@@ -349,7 +386,7 @@ class CoreMod(loader.Module):
                         and all(c.isalnum() or c in "_-" for c in first_word)
                     )
 
-                    if is_valid_candidate and cmd in self.allmodules.commands:
+                    if is_valid_candidate and cmd in commands:
                         is_new_alias = True
                         parsed_aliases = aliases
                         parsed_cmd = cmd
@@ -365,7 +402,7 @@ class CoreMod(loader.Module):
                 cmd = command_parts[0]
                 rest = command_parts[1] if len(command_parts) > 1 else None
 
-                if cmd not in self.allmodules.commands:
+                if cmd not in commands:
                     await utils.answer(
                         message,
                         self.strings["no_command"].format(utils.escape_html(cmd)),
@@ -392,18 +429,21 @@ class CoreMod(loader.Module):
         added_lines = []
         skipped_lines = []
         planned_aliases = {}
-        stored_aliases = {**self.get("aliases", {})}
+        stored_aliases = {**self.get(storage_key, {})}
 
         for aliases, cmd, rest in alias_lines:
             target = f"{cmd} {rest}" if rest else cmd
             added_aliases = []
 
             for alias in aliases:
-                if alias in self.allmodules.aliases:
+                if inline and (alias in commands or not re.fullmatch(r"[\w-]+", alias)):
+                    await utils.answer(message, self.strings["inline_alias_invalid"])
+                    return
+                if alias in existing_aliases:
                     skipped_lines.append(
                         self.strings["alias_exists"].format(
                             alias=utils.escape_html(alias),
-                            command=utils.escape_html(self.allmodules.aliases[alias]),
+                            command=utils.escape_html(existing_aliases[alias]),
                         )
                     )
                     continue
@@ -417,7 +457,7 @@ class CoreMod(loader.Module):
                     )
                     continue
 
-                if not self.allmodules.add_alias(alias, cmd, rest):
+                if not inline and not self.allmodules.add_alias(alias, cmd, rest):
                     await utils.answer(
                         message,
                         self.strings["no_command"].format(utils.escape_html(cmd)),
@@ -432,7 +472,7 @@ class CoreMod(loader.Module):
                 added_lines.append((added_aliases, target))
 
         if added_lines:
-            self.set("aliases", stored_aliases)
+            self.set(storage_key, stored_aliases)
 
         if len(added_lines) == 1 and len(added_lines[0][0]) == 1 and not skipped_lines:
             await utils.answer(
@@ -467,14 +507,20 @@ class CoreMod(loader.Module):
     @loader.command()
     async def delalias(self, message: Message):
         args_raw = utils.get_args_raw(message)
+        parts = args_raw.split(maxsplit=1)
+        inline = bool(parts and parts[0] in {"-i", "--inline"})
+        if inline:
+            args_raw = parts[1] if len(parts) > 1 else ""
+        storage_key = "inline_aliases" if inline else "aliases"
 
         if not args_raw:
             await utils.answer(message, self.strings["delalias_args"])
             return
 
         if args_raw.strip() in {"-c", "--clear"}:
-            self.allmodules.aliases.clear()
-            self.set("aliases", {})
+            if not inline:
+                self.allmodules.aliases.clear()
+            self.set(storage_key, {})
             await utils.answer(message, self.strings["aliases_cleared"])
             return
 
@@ -491,12 +537,13 @@ class CoreMod(loader.Module):
             await utils.answer(message, self.strings["delalias_args"])
             return
 
-        current = self.get("aliases", {})
+        current = dict(self.get(storage_key, {}))
         removed_aliases = []
         missed_aliases = []
 
         for alias in aliases:
-            if not self.allmodules.remove_alias(alias):
+            removed = alias in current if inline else self.allmodules.remove_alias(alias)
+            if not removed:
                 missed_aliases.append(alias)
                 continue
 
@@ -504,7 +551,7 @@ class CoreMod(loader.Module):
             removed_aliases.append(alias)
 
         if removed_aliases:
-            self.set("aliases", current)
+            self.set(storage_key, current)
 
         if len(removed_aliases) == 1 and not missed_aliases:
             await utils.answer(

@@ -80,6 +80,17 @@ class Events(InlineUnit):
             return
 
         cmd = query.split()[0].lower()
+        settings = self._allmodules.lookup("settings")
+        aliases = settings.get("inline_aliases", {}) if settings else {}
+        if cmd not in self._allmodules.inline_handlers and cmd in aliases:
+            target = aliases[cmd]
+            target_parts = target.split(maxsplit=1)
+            if target_parts:
+                cmd = target_parts[0].lower()
+                supplied_args = query.split(maxsplit=1)
+                query = target + (" " + supplied_args[1] if len(supplied_args) > 1 else "")
+                wrapped_query.query = wrapped_query.text = query
+                wrapped_query.args = query.split(maxsplit=1)[1] if len(query.split()) > 1 else ""
         if (
             cmd in self._allmodules.inline_handlers
             and await self.check_inline_security(

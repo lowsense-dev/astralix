@@ -1140,6 +1140,10 @@ class Modules:
                     continue
                 available.append(handler)
             return text, available
+        settings = self.lookup("settings")
+        target = settings.get("inline_aliases", {}).get(_command.lower()) if settings else None
+        if target and _command.lower() != "inlinecall":
+            return self.dispatch_candidates(f"inlinecall {target}")
         return _command, []
 
     def send_config(self, skip_hook: bool = False):
