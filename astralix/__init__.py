@@ -29,5 +29,5 @@ __contact__ = "https://github.com/lowsense-dev/astralix"
 __copyright__ = "Copyright 2026 LowSense (modifications); Copyright 2022 Dan Gazizullin"
 __credits__ = ["LonamiWebs", "penn5"]
 __license__ = "AGPLv3"
-__maintainer__ = "lowsense-dev"
+__maintainer__ = "lowsense-dev, coddrago"
 __status__ = "Production"
