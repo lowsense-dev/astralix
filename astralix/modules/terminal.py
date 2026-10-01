@@ -88,11 +88,9 @@ class MessageEditor:
         if self.rc is not None:
             text += self.strings["finished"].format(utils.escape_html(str(self.rc)))
 
-        text += self.strings["stdout"]
-        text += utils.escape_html(self.stdout[max(len(self.stdout) - 2048, 0) :])
+        text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
         stderr = utils.escape_html(self.stderr[max(len(self.stderr) - 1024, 0) :])
-        text += (self.strings["stderr"] + stderr) if stderr else ""
-        text += self.strings["end"]
+        text += self.strings["stderr"].format(stderr) if stderr else ""
 
         if self.rc is not None:
             exec_time = time.time() - self.start_time
@@ -142,6 +140,7 @@ class SudoMessageEditor(MessageEditor):
                 form = await module.inline.form(
                     message=self.message,
                     text=editor.render_text(),
+                    **({"rich_message": editor.render_text()} if self.config["rich_mode"] else {}),
                     reply_markup=editor.get_reply_markup(),
                     force_me=True,
                     on_unload=editor.on_unload,
@@ -342,16 +341,28 @@ class InlineMessageEditor:
         await self.redraw()
 
     def render_text(self):
+        if self.config["rich_mode"]:
+            text = self.strings["rich_output"].format(
+                command=utils.escape_html(self.command),
+                stdout=utils.escape_html(self.stdout[-2048:]),
+                stderr=utils.escape_html(self.stderr[-1024:]),
+            )
+            text += (
+                self.strings["rich_finished"].format(
+                    code=self.rc, seconds=round(time.time() - self.start_time, 2),
+                ) if self.rc is not None else self.strings["rich_running"]
+            )
+            if self.waiting_password and self.rc is None:
+                text += "<p>" + self._auth_notice + "</p>"
+            return text
         text = self.strings["running"].format(utils.escape_html(self.command))
 
         if self.rc is not None:
             text += self.strings["finished"].format(utils.escape_html(str(self.rc)))
 
-        text += self.strings["stdout"]
-        text += utils.escape_html(self.stdout[max(len(self.stdout) - 2048, 0) :])
+        text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
         stderr = utils.escape_html(self.stderr[max(len(self.stderr) - 1024, 0) :])
-        text += (self.strings["stderr"] + stderr) if stderr else ""
-        text += self.strings["end"]
+        text += self.strings["stderr"].format(stderr) if stderr else ""
 
         if self.rc is not None:
             exec_time = time.time() - self.start_time
@@ -361,11 +372,17 @@ class InlineMessageEditor:
             text += "\n" + self._auth_notice
         return text
 
+    def message_kwargs(self, text):
+        return {"rich_message": text} if self.config["rich_mode"] else {"text": text}
+
+    async def edit(self, text, **kwargs):
+        return await self.form.edit(**self.message_kwargs(text), **kwargs)
+
     async def redraw(self):
         async with self._edit_lock:
             if self.form is not None:
                 with contextlib.suppress(Exception):
-                    await self.form.edit(
+                    await self.edit(
                         self.render_text(), reply_markup=self.get_reply_markup()
                     )
 
@@ -510,6 +527,12 @@ class TerminalMod(loader.Module):
     def __init__(self):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
+                "rich_mode",
+                False,
+                lambda: self.strings["_cfg_rich_mode"],
+                validator=loader.validators.Boolean(),
+            ),
+            loader.ConfigValue(
                 "sticky_sessions",
                 False,
                 lambda: self.strings["sticky_sessions_doc"],
@@ -591,7 +614,7 @@ class TerminalMod(loader.Module):
             await session.close()
         editor.reset("")
         editor.rc = 0
-        await editor.form.edit(self.strings["session_reset"], reply_markup=editor.get_reply_markup())
+        await editor.edit(self.strings["session_reset"], reply_markup=editor.get_reply_markup())
         await call.answer()
 
     def _start_command(self, key, cmd, editor):
@@ -810,7 +833,10 @@ class TerminalMod(loader.Module):
             inline_message_id=call.inline_message_id,
         )
 
-        await form.edit(self.strings["exec_running"])
+        await form.edit(**(
+            {"rich_message": self.strings["exec_running"]}
+            if self.config["rich_mode"] else {"text": self.strings["exec_running"]}
+        ))
 
         editor = InlineMessageEditor(
             form=form,
@@ -837,7 +863,7 @@ class TerminalMod(loader.Module):
 
         job = self._shell_jobs.get(editor.session_key)
         if job is not None and not job.done():
-            await editor.form.edit(
+            await editor.edit(
                 self.strings["session_busy"],
                 reply_markup=editor.get_reply_markup(),
             )
@@ -850,7 +876,7 @@ class TerminalMod(loader.Module):
         cmd = query
 
         if self._is_dangerous(cmd):
-            await editor.form.edit(
+            await editor.edit(
                 self.strings["dangerous_command"].format(utils.escape_html(cmd)),
                 reply_markup=self._build_inline_continue_markup(editor, session_uid),
             )
@@ -864,7 +890,7 @@ class TerminalMod(loader.Module):
             self._start_command(editor.session_key, cmd, editor)
         except (SessionBusy, RuntimeError) as error:
             editor.rc = 1
-            await editor.form.edit(
+            await editor.edit(
                 self.strings["session_busy"] if isinstance(error, SessionBusy)
                 else utils.escape_html(str(error)),
                 reply_markup=editor.get_reply_markup(),
@@ -897,6 +923,7 @@ class TerminalMod(loader.Module):
             editor.session_key = key
             form = await self.inline.form(
                 message=message, text=editor.render_text(),
+                **({"rich_message": editor.render_text()} if self.config["rich_mode"] else {}),
                 reply_markup=[], force_me=True,
                 on_unload=editor.on_unload,
             )

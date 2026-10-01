@@ -100,18 +100,22 @@ astralix_security:
   confirm_btn: Подтвердить
   li: <b><a href="{}">{}</a></b>
 terminal:
+  _cfg_rich_mode: "Показывать вывод терминала как Rich-сообщение со сворачиваемыми блоками команды, stdout и stderr."
+  rich_output: '<h2>💻 Терминал</h2><details><summary>⌨️ Команда</summary><pre><code>{command}</code></pre></details><details><summary>📤 Stdout</summary><pre><code>{stdout}</code></pre></details><details><summary>⚠️ Stderr</summary><pre><code>{stderr}</code></pre></details>'
+  rich_running: '<p>⏳ Выполняется…</p>'
+  rich_finished: '<p>🏁 Код выхода: <code>{code}</code><br>⏱ Время выполнения: {seconds}с</p>'
   sticky_sessions_doc: "Сохранять рабочую папку, переменные и shell-функции между командами. Кнопка «Следующая команда» продолжает работу в той же карточке терминала. Состояние хранится до сброса сессии или перезапуска юзербота. По умолчанию выключено; отключение сбрасывает состояние после завершения активных команд."
   sticky_sessions_off: "Сохранение shell-сессий выключено."
   fw_protect: "Задержка между редактированиями"
   command_protect: "Блокировать явно разрушительные команды терминала перед выполнением"
-  what_to_kill: "<b>Ответь на выполняемую команду для ее завершения</b>"
-  kill_fail: "<b>Не могу убить процесс</b>"
-  killed: "<b>Убит</b>"
-  no_cmd: "<b>В этом сообщении не выполняется команда</b>"
-  running: "<b> Системная команда</b> <code>{}</code>"
-  finished: "\n<b>Код выхода </b> <code>{}</code>"
-  stdout: "\n<b>Stdout:</b>\n<pre><code class=\"language-stdout\">"
-  stderr: "</code></pre>\n\n<b>Stderr:</b>\n<pre><code class=\"language-stderr\">"
+  what_to_kill: "↩️ <b>Ответь на выполняемую команду для её завершения</b>"
+  kill_fail: "🚫 <b>Не удалось завершить процесс</b>"
+  killed: "🛑 <b>Процесс завершён</b>"
+  no_cmd: "📭 <b>В этом сообщении не выполняется команда</b>"
+  running: "💻 <b>Системная команда</b>\n<code>{}</code>"
+  finished: "\n🏁 <b>Код выхода:</b> <code>{}</code>"
+  stdout: "\n\n📤 <b>Stdout:</b>\n<pre><code class=\"language-stdout\">{}</code></pre>"
+  stderr: "\n\n⚠️ <b>Stderr:</b>\n<pre><code class=\"language-stderr\">{}</code></pre>"
   end: "</code></pre>"
   time_exec: "\n⏱ <b>Время выполнения: {}s</b>"
   auth_fail: "<b>Аутентификация неуспешна, попробуй еще раз</b>"
@@ -124,25 +128,25 @@ terminal:
   _cmd_doc_apt: "Сокращение для '.terminal apt'"
   _cmd_doc_terminal: "[команда] - Выполнить shell-команду. Кнопка «Следующая команда» продолжает работу; включи sticky_sessions для сохранения рабочей папки и окружения."
   _cmd_doc_terminate: "[-f to force kill] - Ответьте на сообщение, чтобы убить процесс"
-  exec_confirm: "<b>Системная команда:</b> <code>{}</code>"
-  exec_running: "<b>Выполняю...</b>"
-  btn_execute: "Выполнить"
+  exec_confirm: "💻 <b>Системная команда:</b>\n<code>{}</code>"
+  exec_running: "⏳ <b>Выполняю…</b>"
+  btn_execute: "▶️ Выполнить"
   btn_continue: "⌨️ Следующая команда"
-  btn_reset_session: "↺ Сбросить сессию"
+  btn_reset_session: "🔄 Сбросить сессию"
   session_reset: "<b>Shell-сессия сброшена.</b> Следующая команда начнётся в исходной папке с чистым окружением."
   session_busy: "В этой сессии уже выполняется команда. Дождись завершения или сбрось сессию."
   session_limit: "Слишком много shell-сессий. Сначала сбрось неиспользуемую сессию."
-  btn_input_password: "Ввести пароль"
+  btn_input_password: "🔑 Ввести пароль"
   sudo_password_input: "Передать пароль sudo"
-  sudo_password_required: "<b>sudo: требуется пароль.</b>"
-  sudo_password_retry: "<b>sudo: введите пароль повторно.</b>"
-  inline_hint: "Terminal"
+  sudo_password_required: "🔐 <b>sudo: требуется пароль.</b>"
+  sudo_password_retry: "🔐 <b>sudo: введи пароль повторно.</b>"
+  inline_hint: "💻 Терминал"
   inline_hint_desc: "Начните вводить команду"
 
 
   name: Terminal
   _cls_doc: Запуск shell-команд
-  exec_error: "<b>Ошибка выполнения:</b>\n<code>{}</code>"
+  exec_error: "🚫 <b>Ошибка выполнения:</b>\n<code>{}</code>"
 astralix_backup:
   period: "<b>Юнит «ALPHA»</b> создает регулярные резервные копии. Эти настройки можно изменить позже.\n\nПожалуйста, выберите периодичность резервного копирования\n\n<b>Таким образом невозможно восстановить модули скачанные с файлов командой .lm! Будьте осторожны и делайте .backupmods перед восстановлением.</b>"
   saved: "Периодичность сохранена! Ее можно изменить с помощью <code>{prefix}set_backup_period</code>"
