@@ -835,6 +835,14 @@ class TerminalMod(loader.Module):
         if not editor or editor.rc is None:
             return
 
+        job = self._shell_jobs.get(editor.session_key)
+        if job is not None and not job.done():
+            await editor.form.edit(
+                self.strings["session_busy"],
+                reply_markup=editor.get_reply_markup(),
+            )
+            return
+
         query = query.strip()
         if not query:
             return
@@ -849,7 +857,6 @@ class TerminalMod(loader.Module):
             return
 
         editor.reset(cmd)
-        await editor.form.edit(self.strings["exec_running"])
         await self._run_inline(cmd, editor)
 
     async def _run_inline(self, cmd: str, editor: InlineMessageEditor):
@@ -885,7 +892,6 @@ class TerminalMod(loader.Module):
         if editor is None:
             editor = InlineMessageEditor(
                 None, cmd, self.strings, self.config,
-                reply_markup=self._reset_markup,
             )
             editor.owner_id = self.tg_id
             editor.session_key = key
@@ -897,6 +903,9 @@ class TerminalMod(loader.Module):
             if not form:
                 return
             editor.form = form
+            editor.reply_markup = lambda current_editor: self._build_inline_continue_markup(
+                current_editor, form.unit_id,
+            )
             self._inline_sessions[form.unit_id] = editor
         try:
             task = self._start_command(key, cmd, editor)
