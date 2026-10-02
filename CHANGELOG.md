@@ -1,6 +1,40 @@
 что.ты.заказала.
 # astralix Changelog
 
+## astralix 1.1.5
+
+### Commands and terminal
+
+- Add `.addalias -i/--inline alias command`, `.aliases -i` and `.delalias -i [alias|--clear]` for persistent inline-command aliases.
+- Allow inline aliases in bot queries and as ordinary prefixed commands through `.inlinecall`, preserving result buttons, replies and topics. Existing ordinary commands take precedence; terminal execution still requires its Execute confirmation.
+- Add a Next command button to ordinary `.terminal` and `.exec` cards and prevent concurrent commands in a busy session.
+- Continue commands in the existing sticky shell, retaining its working directory, variables and functions while showing the latest result on the same card.
+- Add Terminal `rich_mode` with collapsible command, stdout and stderr sections, localized status messages and buttons.
+- Fix empty Rich terminal sections causing `RICH_MESSAGE_CONTENT_REQUIRED` and replace the generic inline invocation failure with a localized message and error details.
+- Expand consistent English and Russian styling across help, settings, loader, updater, security, backups, terminal and inline menus.
+- Bump the version to `1.1.5` in `astralix/version.py`, `pyproject.toml` and `uv.lock`.
+
+### Subsequent changes on dev
+
+- Refine Rich terminal output: show the command as labeled inline code (`Command: <code>…</code>`), keep non-empty stdout/stderr collapsible and hide empty or whitespace-only output sections in both ordinary and Rich modes.
+- Add the four-piece astralix Premium emoji logo with a plain-text fallback, including a Premium check for the updater stop message.
+- Add `{title}` to info and ping placeholder providers and default ordinary/Rich templates; custom templates can use the same placeholder.
+- Add independent Astralix `atx_rich_mode`, enabled by default, while `rich_mode` continues to control `.info`.
+- Refine English and Russian menu layouts, configuration feedback, collections, permissions, repository installation, confirmations and language selection.
+- Rename `.dllangpack` to `.loadlangpack`; accept a raw pack URL or a reply to a translation-pack file.
+- Validate translation packs before saving. Store uploaded packs in the account database, restore them after restart and expose them in the downloaded-language menu.
+- Add `coddrago` to project maintainer metadata.
+
+## astralix 1.1.4
+
+- Consolidate `.cfg` and settings commands in Core, move `.tr` into Translations and move `.restart` into Tester while retaining the restart engine in Updater.
+- Move `.astralix` into the info module and rename that module to Astralix; remove the redundant configuration, settings and translation modules.
+- Remove default banners from info, ping, help and settings while retaining avatars; remove banner rendering from `.astralix` entirely.
+- Make `.e -so` show completion feedback instead of silently returning.
+- Add `.cfg -r/--reset` support for resetting multiple options separated by newlines or `&&`.
+- Refresh English and Russian core interface wording, emoji, menus and settings buttons; synchronize translation keys and fix help-text markup.
+- Bump the version to `1.1.4`.
+
 ## astralix 1.1.3
 
 - Refresh the startup log message in English and Russian with version, build, platform and prefix blocks.
