@@ -18,12 +18,14 @@
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 
 from deep_translator import GoogleTranslator
 from astralixtl.tl.types import Message
 
 from .. import loader, translations, utils
+from .._internal import fetch_text
 from ..inline.types import InlineCall
 
 logger = logging.getLogger(__name__)
@@ -165,7 +167,7 @@ class Translations(loader.Module):
         langs = self._db.get(translations.__name__, "lang", None)
         if not langs:
             return []
-        return [lang for lang in langs.split() if utils.check_url(lang)]
+        return [lang for lang in langs.split() if translations.is_external_pack(lang)]
 
     def _get_non_downloaded_langs(self) -> str:
         langs = self._db.get(translations.__name__, "lang", None)
@@ -174,7 +176,7 @@ class Translations(loader.Module):
         result = " ".join(
             translations.normalize_language(lang)
             for lang in langs.split()
-            if not utils.check_url(lang)
+            if not translations.is_external_pack(lang)
         )
         return result if result else None
 
@@ -365,20 +367,38 @@ class Translations(loader.Module):
         )
 
     @loader.command()
-    async def dllangpackcmd(self, message: Message):
-        if not (args := utils.get_args_raw(message)) or not utils.check_url(args):
+    async def loadlangpackcmd(self, message: Message):
+        """<raw link or reply to file> - Load an external translation pack"""
+        args = utils.get_args_raw(message).strip()
+        reply = await message.get_reply_message() if not args else None
+        if (args and not utils.check_url(args)) or (
+            not args and not (reply and reply.document)
+        ):
             await utils.answer(message, self.strings["check_url"])
             return
 
-        current_lang = (
-            " ".join(
-                lang
-                for lang in self._db.get(translations.__name__, "lang", None).split()
-                if not utils.check_url(lang)
-            )
-            if self._db.get(translations.__name__, "lang", None)
-            else None
-        )
+        try:
+            if args:
+                content = await utils.run_sync(fetch_text, args)
+            else:
+                content = (await self._client.download_media(reply, bytes)).decode("utf-8-sig")
+            data = translations.BaseTranslator()._get_pack_raw(content, ".yml")
+            if not data or not all(
+                isinstance(key, str) and isinstance(value, str)
+                for key, value in data.items()
+            ):
+                raise ValueError("Invalid translation mapping")
+        except Exception:
+            await utils.answer(message, self.strings["check_pack"])
+            return
+
+        if not args:
+            args = "pack:" + hashlib.sha256(content.encode()).hexdigest()[:16]
+            packs = dict(self._db.get(translations.__name__, "file_packs", {}))
+            packs[args] = data
+            self._db.set(translations.__name__, "file_packs", packs)
+
+        current_lang = self._get_non_downloaded_langs()
 
         self._db.set(
             translations.__name__,
