@@ -291,6 +291,7 @@ async def _send_rich_message(
         reply_to=reply_to,
         buttons=reply_markup,
         silent=silent,
+        top_msg_id=get_topic(message),
     )
 
 
@@ -313,24 +314,7 @@ async def _edit_inline_rich_message(
     rich_message: str,
     reply_markup=None,
 ):
-    unit = getattr(message, "form", None) or {}
-    caller = unit.get("caller")
-    if caller is None:
-        caller = unit.get("chat")
-    if caller is None:
-        caller = getattr(message, "chat_id", None)
-    if caller is not None and hasattr(message, "inline_manager"):
-        with contextlib.suppress(Exception):
-            await message.delete()
-        return await message.inline_manager.form(
-            "",
-            caller,
-            reply_markup=reply_markup or [],
-            rich_message=rich_message,
-            reply_to=unit.get("top_msg_id"),
-            silent=True,
-            ttl=600,
-        )
+    """Edit the existing card; never delete it before a successful RPC."""
     rich_markup = (
         message.inline_manager.generate_markup(reply_markup)
         if reply_markup is not None
@@ -352,6 +336,47 @@ async def _edit_inline_rich_message(
     return message
 
 
+async def _answer_rich(message, content, response, reply_markup, options):
+    """Route Rich delivery without mixing native messages and inline forms."""
+    rich_filter = getattr(message, "_astralix_grep_rich", None)
+    if callable(rich_filter):
+        content = rich_filter(content)
+
+    if isinstance(message, (InlineMessage, InlineCall, BotInlineMessage, BotInlineCall)):
+        return await _edit_inline_rich_message(message, content, reply_markup)
+
+    reply_to = options.get("reply_to")
+    if reply_to is None:
+        reply_to = getattr(message, "reply_to_msg_id", None) or get_topic(message)
+
+    premium = getattr(getattr(message.client, "astralix_me", None), "premium", False)
+    if reply_markup or not premium:
+        inline = message.client.loader.inline
+        form_options = {
+            key: options[key]
+            for key in ("force_me", "always_allow", "manual_security",
+                        "disable_security", "on_unload")
+            if key in options
+        }
+        return await inline.form(
+            text=response or "Rich message",
+            message=message if message.out else get_chat_id(message),
+            rich_message=content,
+            reply_markup=inline._normalize_markup(reply_markup) if reply_markup else [],
+            reply_to=reply_to,
+            silent=options.get("silent", True),
+            ttl=options.get("ttl", 600),
+            **form_options,
+        )
+
+    if message.out and not message.via_bot_id and not message.fwd_from:
+        return await _edit_rich_message(message, content, reply_markup=reply_markup)
+    return await _send_rich_message(
+        message, content, reply_to=reply_to,
+        reply_markup=reply_markup, silent=options.get("silent"),
+    )
+
+
 async def answer_with_media_fallback(message, *args, **kwargs):
     try:
         return await answer(message, *args, **kwargs)
@@ -361,7 +386,9 @@ async def answer_with_media_fallback(message, *args, **kwargs):
         ) != "RICH_MESSAGE_PHOTO_NO_MEDIA_FOUND":
             raise
         rich_message = kwargs.get("rich_message")
-        if rich_message:
+        if rich_message is None and kwargs.get("rich"):
+            rich_message = args[0] if args else kwargs.get("response")
+        if isinstance(rich_message, str):
             without_images = re.sub(
                 r"<img\b(?:[^>\"']|\"[^\"]*\"|'[^']*')*>",
                 "",
@@ -422,62 +449,10 @@ async def answer(
         rich_message = response
 
     if rich_message is not None:
-        rich_filter = getattr(message, "_astralix_grep_rich", None)
-        if callable(rich_filter):
-            rich_message = rich_filter(rich_message)
-
-        if isinstance(
-            message,
-            (InlineMessage, InlineCall, BotInlineMessage, BotInlineCall),
-        ):
-            return await _edit_inline_rich_message(
-                message,
-                rich_message,
-                reply_markup=reply_markup,
-            )
-
-        if reply_markup or not getattr(
-            getattr(message.client, "astralix_me", None), "premium", False
-        ):
-            inline = message.client.loader.inline
-            form_kwargs = {
-                key: kwargs[key]
-                for key in (
-                    "force_me", "always_allow", "manual_security",
-                    "disable_security", "on_unload",
-                )
-                if key in kwargs
-            }
-            return await inline.form(
-                text=response or "Rich message",
-                message=message if message.out else get_chat_id(message),
-                rich_message=rich_message,
-                reply_markup=inline._normalize_markup(reply_markup)
-                if reply_markup else [],
-                reply_to=kwargs.get("reply_to")
-                or getattr(message, "reply_to_msg_id", None)
-                or get_topic(message),
-                silent=kwargs.get("silent", True),
-                ttl=kwargs.get("ttl", 600),
-                **form_kwargs,
-            )
-
-        edit = message.out and not message.via_bot_id and not message.fwd_from
-        if edit:
-            return await _edit_rich_message(
-                message,
-                rich_message,
-                reply_markup=reply_markup,
-            )
-
-        return await _send_rich_message(
-            message,
-            rich_message,
-            reply_to=kwargs.pop("reply_to", None)
-            or getattr(message, "reply_to_msg_id", None)
-            or get_topic(message),
-            reply_markup=reply_markup,
-            silent=kwargs.pop("silent", None),
+        if reply_markup is not None and not isinstance(reply_markup, (list, dict)):
+            raise ValueError("reply_markup must be a list or dict")
+        return await _answer_rich(
+            message, rich_message, response, reply_markup, kwargs,
         )
 
     if reply_markup is not None:

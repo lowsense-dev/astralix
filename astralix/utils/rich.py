@@ -6,6 +6,39 @@
 
 import base64
 import html
+from html.parser import HTMLParser
+
+from astralixtl.extensions.html import unparse
+
+
+_TEXT_TAGS = {
+    "TextBold": "b", "TextItalic": "i", "TextUnderline": "u",
+    "TextStrike": "s", "TextFixed": "code", "TextSubscript": "sub",
+    "TextSuperscript": "sup", "TextMarked": "mark", "TextSpoiler": "tg-spoiler",
+}
+
+
+class _PlainText(HTMLParser):
+    """Extract readable text without conflating Rich HTML with raw text."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+
+    def handle_data(self, data):
+        if data == "\n" and self.parts and self.parts[-1].endswith("\n"):
+            return
+        self.parts.append(data)
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "br":
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in {"p", "pre", "li", "tr", "summary", "blockquote", "details",
+                   "h1", "h2", "h3", "h4", "h5", "h6"}:
+            if self.parts and not self.parts[-1].endswith("\n"):
+                self.parts.append("\n")
 
 
 def _escape(value) -> str:
@@ -30,22 +63,11 @@ def _text(value) -> str:
     if name == "TextConcat":
         return "".join(_text(item) for item in getattr(value, "texts", []))
     if name == "TextWithEntities":
-        return _escape(getattr(value, "text", ""))
+        return unparse(value.text, getattr(value, "entities", None))
 
-    tags = {
-        "TextBold": ("<b>", "</b>"),
-        "TextItalic": ("<i>", "</i>"),
-        "TextUnderline": ("<u>", "</u>"),
-        "TextStrike": ("<s>", "</s>"),
-        "TextFixed": ("<code>", "</code>"),
-        "TextSubscript": ("<sub>", "</sub>"),
-        "TextSuperscript": ("<sup>", "</sup>"),
-        "TextMarked": ("<mark>", "</mark>"),
-        "TextSpoiler": ("<tg-spoiler>", "</tg-spoiler>"),
-    }
-    if name in tags:
-        start, end = tags[name]
-        return start + _text(getattr(value, "text", None)) + end
+    if name in _TEXT_TAGS:
+        tag = _TEXT_TAGS[name]
+        return f"<{tag}>{_text(getattr(value, 'text', None))}</{tag}>"
 
     if name in {"TextUrl", "TextAutoUrl"}:
         url = getattr(value, "url", None) or getattr(value, "text", "")
@@ -192,7 +214,7 @@ def _block(value) -> str:
         "PageBlockHeader": "h3",
         "PageBlockSubheader": "h4",
         "PageBlockKicker": None,
-        "PageBlockParagraph": None,
+        "PageBlockParagraph": "p",
         "PageBlockFooter": "footer",
     }
     if name in simple:
@@ -206,8 +228,9 @@ def _block(value) -> str:
     if name == "PageBlockAnchor":
         return f'<a name="{_attribute(getattr(value, "name", ""))}"></a>'
     if name in {"PageBlockBlockquote", "PageBlockPullquote"}:
-        caption = _caption(getattr(value, "caption", None))
-        return f"<blockquote>{text}{f'<cite>{caption}</cite>' if caption else ''}</blockquote>"
+        caption = _text(getattr(value, "caption", None))
+        collapsed = " expandable" if getattr(value, "collapsed", False) else ""
+        return f"<blockquote{collapsed}>{text}{f'<cite>{caption}</cite>' if caption else ''}</blockquote>"
     if name == "PageBlockBlockquoteBlocks":
         blocks = "".join(_block(item) for item in getattr(value, "blocks", []))
         return f"<blockquote>{blocks}{_caption(getattr(value, 'caption', None))}</blockquote>"
@@ -242,7 +265,8 @@ def _block(value) -> str:
     if name == "PageBlockDetails":
         title = _text(getattr(value, "title", None))
         blocks = "".join(_block(item) for item in getattr(value, "blocks", []))
-        return f"<details><summary>{title}</summary>{blocks}</details>"
+        opened = " open" if getattr(value, "open", False) else ""
+        return f"<details{opened}><summary>{title}</summary>{blocks}</details>"
     if name == "PageBlockMath":
         return f"<tg-math-block>{_escape(getattr(value, 'source', ''))}</tg-math-block>"
     if name == "PageBlockThinking":
@@ -256,7 +280,9 @@ def _block(value) -> str:
         return _text(getattr(value, "title", None))
     if name == "PageBlockAuthorDate":
         return _text(getattr(value, "author", None))
-    if name in {"PageBlockChannel", "PageBlockCover", "PageBlockUnsupported"}:
+    if name == "PageBlockCover":
+        return _block(getattr(value, "cover", None))
+    if name in {"PageBlockChannel", "PageBlockUnsupported"}:
         return f"<i>[{_escape(name)}]</i>"
     nested = getattr(value, "blocks", None)
     if nested is not None:
@@ -265,13 +291,24 @@ def _block(value) -> str:
 
 
 def rich_message_to_html(rich_message) -> str:
+    """Render a native RichMessage to escaped Rich HTML (not ordinary HTML)."""
     if rich_message is None:
         return ""
+    if isinstance(rich_message, str):
+        return rich_message
     return "\n".join(
         rendered
         for rendered in (_block(item) for item in getattr(rich_message, "blocks", []))
         if rendered
     )
+
+
+def rich_message_to_text(rich_message) -> str:
+    """Return readable, unformatted text from a native RichMessage."""
+    parser = _PlainText()
+    parser.feed(rich_message_to_html(rich_message))
+    parser.close()
+    return "".join(parser.parts).rstrip("\n")
 
 
 def install_rich_message_support():
@@ -291,6 +328,8 @@ def install_rich_message_support():
 
     def set_message(self, value):
         self._astralix_message_text = value
+        self._astralix_rich_message_native = None
+        self._text = None
 
     def get_rich_message(self):
         native = getattr(self, "_astralix_rich_message_native", None)
@@ -298,6 +337,7 @@ def install_rich_message_support():
 
     def set_rich_message(self, value):
         self._astralix_rich_message_native = value
+        self._text = None
 
     def get_text(self):
         if getattr(self, "_astralix_rich_message_native", None) is not None:
@@ -305,14 +345,16 @@ def install_rich_message_support():
         return original_text.fget(self)
 
     def set_text(self, value):
+        self._astralix_rich_message_native = None
         original_text.fset(self, value)
 
     def get_raw_text(self):
         if getattr(self, "_astralix_rich_message_native", None) is not None:
-            return get_rich_message(self)
+            return rich_message_to_text(self._astralix_rich_message_native)
         return original_raw_text.fget(self)
 
     def set_raw_text(self, value):
+        self._astralix_rich_message_native = None
         original_raw_text.fset(self, value)
 
     def get_rich_message_entity(self):

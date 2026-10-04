@@ -16,6 +16,9 @@
 
 ### Subsequent changes on dev
 
+- Refactor Rich delivery in utils into a dedicated routing function; edit inline cards in place instead of deleting and recreating them, validate markup and preserve forum-topic context for native sends.
+- Improve Rich-to-HTML conversion to preserve text entities, paragraphs, open details, collapsed quotes and cover contents. Return plain text from Rich `raw_text` and clear stale Rich state when ordinary text replaces it.
+- Support missing-image fallback for both `rich_message=` and `rich=True` calls.
 - Refine Rich terminal output: show the command as labeled inline code (`Command: <code>…</code>`), keep non-empty stdout/stderr collapsible and hide empty or whitespace-only output sections in both ordinary and Rich modes.
 - Add the four-piece astralix Premium emoji logo with a plain-text fallback, including a Premium check for the updater stop message.
 - Add `{title}` to info and ping placeholder providers and default ordinary/Rich templates; custom templates can use the same placeholder.
