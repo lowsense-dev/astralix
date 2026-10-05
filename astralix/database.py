@@ -35,7 +35,8 @@ except ImportError as e:
 
 import typing
 
-from astralixtl.tl.types import Message, User
+from astralixtl.tl.types import Message, PeerChannel, User
+from astralixtl.utils import resolve_id
 
 from . import main, utils
 from ._internal import private_write, register_secrets
@@ -135,7 +136,12 @@ class Database(dict):
 
         if existing_channel_id:
             try:
-                content_channel = await self._client.get_entity(existing_channel_id)
+                channel_id, peer_type = resolve_id(existing_channel_id)
+                if not channel_id or (
+                    existing_channel_id < 0 and peer_type is not PeerChannel
+                ):
+                    raise ValueError("Invalid content channel ID")
+                content_channel = await self._client.get_entity(PeerChannel(channel_id))
                 if not await utils.is_private_asset_channel(
                     self._client, content_channel, allow_participants=True
                 ):

@@ -62,6 +62,12 @@ a service for an existing installation.
   and media delivery. Rich and ordinary HTML are separate rendering paths.
 - `astralix/langpacks/en.yml`, `ru.yml`: user-facing translations.
 - `astralix/_internal.py`: shared security helpers, secret redaction and restart.
+- `astralix/utils/entity.py::asset_forum_topic`: numeric forum IDs resolve as
+  `PeerChannel`, including positive unmarked IDs. A missing (`None` or integer
+  zero) peer recovers the private content channel through
+  `Database.ensure_content_channel`; arbitrary invalid peers do not fall back
+  to that channel. Saved content-channel IDs likewise resolve as channels and
+  must still pass the existing private owner-controlled asset-channel check.
 
 ## Update behavior
 

@@ -395,6 +395,15 @@ async def asset_forum_topic(
     icon_emoji_id: int | None = None,
     invite_bot: bool = False,
 ) -> ForumTopic:
+    if peer is None or (isinstance(peer, int) and not peer):
+        peer = await db.ensure_content_channel()
+
+    if isinstance(peer, int):
+        channel_id, peer_type = astralixtl.utils.resolve_id(peer)
+        if not channel_id or (peer < 0 and peer_type is not PeerChannel):
+            raise ValueError("Expected a nonzero forum channel ID")
+        peer = PeerChannel(channel_id)
+
     entity = await client.get_entity(peer)
 
     if not isinstance(entity, Channel):
