@@ -607,14 +607,33 @@ class CoreMod(loader.Module):
     async def togglecmdcmd(self, message: Message):
         """Toggle disable specific command of a module: togglecmd <module> <command> or togglecmd <command>"""
         args = utils.get_args(message)
-        if not args:
+        if not args or len(args) > 2:
             await utils.answer(message, self.strings["wrong_usage_tcc"])
+            return
 
-        if args and len(args) >= 2:
+        if len(args) == 2:
             mod_arg, cmd = args[0], args[1]
             mod_inst = self.allmodules.lookup(mod_arg)
             if not mod_inst:
-                await utils.answer(message, self.strings["mod404"].format(mod_arg))
+                await utils.answer(message, self.strings["mod404"].format(utils.escape_html(mod_arg)))
+                return
+        else:
+            cmd = args[0]
+            mod_inst = next(
+                (
+                    module
+                    for module in self.allmodules.modules
+                    if cmd.lower() in (
+                        name.lower() for name in module.astralix_commands
+                    )
+                ),
+                None,
+            )
+            if mod_inst is None:
+                await utils.answer(message, self.strings["cmd404"])
+                return
+
+        cmd = cmd.lower()
 
         module_key = mod_inst.__class__.__name__
 
@@ -623,6 +642,7 @@ class CoreMod(loader.Module):
 
         if cmd.lower() not in [c.lower() for c in mod_inst.astralix_commands.keys()]:
             await utils.answer(message, self.strings["cmd404"])
+            return
 
         if any(c.lower() == cmd.lower() for c in current):
             current = [c for c in current if c.lower() != cmd.lower()]
