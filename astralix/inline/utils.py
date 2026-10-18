@@ -67,26 +67,52 @@ class Utils(InlineUnit):
         Telegram HTML and its keyboard as one Rich message with in-text buttons.
         The last row stays a keyboard: Telegram gives no `inline_message_id`
         (so no later edits) for inline messages without one.
+        Buttons with `"inline": True` become links inside the text: they replace
+        their `anchor` HTML (hidden if it is not in the text), or without one get
+        a line of their own (`line`, `{}` = the link).
         :return: Rich HTML and the normalized rows to keep as unit buttons
         """
         rows = self._normalize_markup(reply_markup or [])
         # Assigns callback data / inline queries to the buttons and registers them
         self.generate_markup(rows)
-        parts = _RICH_PRE_RE.split(_RICH_BLOCK_RE.sub(r"\1", text.strip("\n")))
-        body = "".join(
-            part if index % 2 else part.replace("\n", "<br>")
-            for index, part in enumerate(parts)
-        )
+        body = self._rich_text(text.strip("\n"))
+        lines = []
+        for button in itertools.chain.from_iterable(rows):
+            if not button.get("inline"):
+                continue
+
+            link = self._rich_button(button, style="link")
+            if not button.get("anchor"):
+                lines.append(button.get("line", "{}").format(link))
+            # An anchor missing from the text is on another page of it
+            elif (anchor := self._rich_text(button["anchor"])) in body:
+                body = body.replace(anchor, link, 1)
+
+        if lines:
+            body += "<br>" + "<br>".join(lines)
+
         buttons = "".join(
             "<tg-button-row>"
             + "".join(self._rich_button(button) for button in row)
             + "</tg-button-row>"
-            for row in rows[:-1]
+            for row in (
+                [button for button in row if not button.get("inline")]
+                for row in rows[:-1]
+            )
             if row
         )
         return body + buttons, rows
 
-    def _rich_button(self, button: dict) -> str:
+    @staticmethod
+    def _rich_text(text: str) -> str:
+        """Telegram HTML line breaks to Rich ones"""
+        parts = _RICH_PRE_RE.split(_RICH_BLOCK_RE.sub(r"\1", text))
+        return "".join(
+            part if index % 2 else part.replace("\n", "<br>")
+            for index, part in enumerate(parts)
+        )
+
+    def _rich_button(self, button: dict, style: str | None = None) -> str:
         def attr(value: typing.Any) -> str:
             return html.escape(str(value), quote=True)
 
@@ -104,7 +130,7 @@ class Utils(InlineUnit):
         else:
             kind = 'type="disabled"'
 
-        if style := self._get_button_style(button):
+        if style := style or self._get_button_style(button):
             kind += f' style="{style}"'
 
         label = html.escape(str(button.get("text", "")), quote=False) or "·"

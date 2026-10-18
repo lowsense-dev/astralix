@@ -2234,6 +2234,11 @@ class CoreMod(loader.Module):
             category=category,
         )
 
+    @staticmethod
+    def _option_link(option: str) -> dict:
+        """Rich mode: the option name in the settings list is its button"""
+        return {"inline": True, "anchor": f"<code>{utils.escape_html(option)}</code>"}
+
     async def inline__configure(
         self,
         call: InlineCall,
@@ -2299,6 +2304,7 @@ class CoreMod(loader.Module):
                         [
                             {
                                 "text": opt,
+                                **self._option_link(opt),
                                 "callback": self.inline__configure_option,
                                 "kwargs": {
                                     "obj_type": obj_type,
@@ -2354,6 +2360,7 @@ class CoreMod(loader.Module):
                         [
                             {
                                 "text": opt,
+                                **self._option_link(opt),
                                 "callback": self.inline__configure_option,
                                 "kwargs": {
                                     "obj_type": obj_type,
@@ -2402,6 +2409,7 @@ class CoreMod(loader.Module):
                 btns += [
                     {
                         "text": opt,
+                        **self._option_link(opt),
                         "callback": self.inline__configure_option,
                         "kwargs": {"obj_type": obj_type, "mod": mod, "config_opt": opt},
                     }
@@ -2414,10 +2422,11 @@ class CoreMod(loader.Module):
                     )
                     for p in section_params
                 ]
+                header = self.strings["category_header"].format(
+                    utils.escape_html(section_name)
+                )
                 cat_text = [
-                    self.strings["category_header"].format(
-                        utils.escape_html(section_name)
-                    ),
+                    header,
                     "<blockquote expandable>" + "\n".join(cat_lines),
                     "</blockquote>",
                 ]
@@ -2425,6 +2434,8 @@ class CoreMod(loader.Module):
                 btns.append(
                     {
                         "text": f"📂 {section_name}",
+                        "inline": True,
+                        "anchor": header,
                         "callback": self.inline__configure,
                         "args": (mod,),
                         "kwargs": {"obj_type": obj_type, "category": section_name},
@@ -2645,6 +2656,8 @@ class CoreMod(loader.Module):
         btns = [
             {
                 "text": f"{mod_name}",
+                "inline": True,
+                "anchor": f"<b>{utils.escape_html(mod_name)}</b>",
                 "callback": self.inline__configure,
                 "kwargs": {"obj_type": False, "mod": mod_name, "folder": folder},
             }
@@ -2725,6 +2738,9 @@ class CoreMod(loader.Module):
             row = [
                 {
                     "text": btn,
+                    # In Rich mode modules are a list of links, not a keyboard
+                    "inline": True,
+                    "line": "<tg-emoji emoji-id=5253713110111365241>▫️</tg-emoji> {}",
                     "callback": self.inline__configure,
                     "args": (btn,),
                     "kwargs": {"obj_type": obj_type},
