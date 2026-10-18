@@ -1635,7 +1635,7 @@ class LoaderMod(loader.Module):
             errors = []
             msg = ""
             for module in modules:
-                status = await self.unload_module(module)
+                status = await self.unload_module(module, force=force)
                 if "❌" in status or "🚫" in status or "😖" in status:
                     if "💡" in status:
                         status = status.split("<code>")[0]
@@ -1766,6 +1766,9 @@ class LoaderMod(loader.Module):
                     if not isinstance(key, str):
                         continue
                     low = key.lower()
+                    # Core settings live under "astralix.*" and never belong to a module.
+                    if low.startswith("astralix."):
+                        continue
                     for mod_name in worked:
                         base = mod_name[:-3] if mod_name.endswith("Mod") else mod_name
                         candidates = {mod_name.lower(), base.lower()}
@@ -1773,7 +1776,6 @@ class LoaderMod(loader.Module):
                             low == c
                             or low.startswith(c + ".")
                             or low.startswith(c + "_")
-                            or c in low
                             for c in candidates
                         ):
                             try:
