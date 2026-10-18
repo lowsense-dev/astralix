@@ -1289,6 +1289,18 @@ class CoreMod(loader.Module):
             else self.hide_value(self.lookup(mod).config[option])
         )
 
+    def _get_short_value(self, mod: str, option: str) -> str:
+        """One-line value for the settings list: lists as `a, b` instead of a column"""
+        config = self.lookup(mod).config
+        value = config[option]
+        if not isinstance(value, list):
+            return self._get_inline_value(mod, option)
+
+        if getattr(config._config[option].validator, "internal_id", None) == "Hidden":
+            value = ["*" * len(str(item)) for item in value]
+
+        return ", ".join(self.prep_value(str(item)) for item in value) or self.prep_value("[]")
+
     def _get_inline_value(self, mod: str, option: str, limit: int = 2500) -> str:
         value = self._get_value(mod, option)
         if len(value) <= limit:
@@ -2253,7 +2265,7 @@ class CoreMod(loader.Module):
         grouped = module.config.grouped_options()
 
         def fmt_value(option: str) -> str:
-            value = self._get_inline_value(mod, option)
+            value = self._get_short_value(mod, option)
             if len(value) >= 200:
                 value = list(utils.smart_split(*html.parse(value), 200))[0] + "..."
             return value
