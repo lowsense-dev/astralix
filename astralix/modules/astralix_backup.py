@@ -243,7 +243,9 @@ class AstralixBackupMod(loader.Module):
             await self.invoke("restart", "-f", peer=call.message.chat.id)
         except Exception:
             logger.exception("Restore from backupall failed")
-            await call.answer(self.strings["reply_to_file"], show_alert=True)
+            await call.answer(
+                utils.remove_html(self.strings["reply_to_file"]), show_alert=True
+            )
 
     def _restore_archive(self, file):
         if len(file) > MAX_ARCHIVE_SIZE:
