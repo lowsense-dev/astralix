@@ -206,7 +206,7 @@ def format_file_size(size_bytes: int) -> str:
     while size_bytes >= 1024 and i < len(size_names) - 1:
         size_bytes /= 1024.0
         i += 1
-    return ".1f"
+    return f"{size_bytes:.1f} {size_names[i]}"
 
 
 def is_url(string: str) -> bool:

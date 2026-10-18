@@ -426,6 +426,10 @@ class TestMod(loader.Module):
             banner = None
 
         data = {
+            "title": (
+                utils.get_platform_emoji()
+                if self._client.astralix_me.premium else "astralix"
+            ),
             "ping": round((time.perf_counter_ns() - start) / 10**6, 3),
             "uptime": utils.formatted_uptime(),
             "ping_hint": (

@@ -91,6 +91,10 @@ class SecurityGroup(typing.NamedTuple):
     permissions: list[dict]
 
 
+def _expired(rule: dict) -> bool:
+    return bool(rule.get("expires")) and rule["expires"] < time.time()
+
+
 def owner(func: Command) -> Command:
     return _sec(func, OWNER)
 
@@ -396,6 +400,8 @@ class SecurityManager:
         for info in self._sgroups.copy().values():
             if user_id in info.users:
                 for permission in info.permissions:
+                    if _expired(permission):
+                        continue
                     if (
                         permission["rule_type"] == "command"
                         and permission["rule"] == command
@@ -542,6 +548,8 @@ class SecurityManager:
             for info in self._sgroups.copy().values():
                 if user_id in info.users:
                     for permission in info.permissions:
+                        if _expired(permission):
+                            continue
                         if (
                             permission["rule_type"] == "command"
                             and permission["rule"] == command

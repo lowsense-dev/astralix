@@ -106,6 +106,12 @@ class CoreMod(loader.Module):
                 "just emoji in .aliases",
             ),
             loader.ConfigValue(
+                "rich_mode",
+                True,
+                lambda: self.strings["_cfg_rich_mode"],
+                validator=loader.validators.Boolean(),
+            ),
+            loader.ConfigValue(
                 "cfg_emoji",
                 "✨",
                 "Change emoji when opening config",
@@ -607,14 +613,33 @@ class CoreMod(loader.Module):
     async def togglecmdcmd(self, message: Message):
         """Toggle disable specific command of a module: togglecmd <module> <command> or togglecmd <command>"""
         args = utils.get_args(message)
-        if not args:
+        if not args or len(args) > 2:
             await utils.answer(message, self.strings["wrong_usage_tcc"])
+            return
 
-        if args and len(args) >= 2:
+        if len(args) == 2:
             mod_arg, cmd = args[0], args[1]
             mod_inst = self.allmodules.lookup(mod_arg)
             if not mod_inst:
-                await utils.answer(message, self.strings["mod404"].format(mod_arg))
+                await utils.answer(message, self.strings["mod404"].format(utils.escape_html(mod_arg)))
+                return
+        else:
+            cmd = args[0]
+            mod_inst = next(
+                (
+                    module
+                    for module in self.allmodules.modules
+                    if cmd.lower() in (
+                        name.lower() for name in module.astralix_commands
+                    )
+                ),
+                None,
+            )
+            if mod_inst is None:
+                await utils.answer(message, self.strings["cmd404"])
+                return
+
+        cmd = cmd.lower()
 
         module_key = mod_inst.__class__.__name__
 
@@ -623,6 +648,7 @@ class CoreMod(loader.Module):
 
         if cmd.lower() not in [c.lower() for c in mod_inst.astralix_commands.keys()]:
             await utils.answer(message, self.strings["cmd404"])
+            return
 
         if any(c.lower() == cmd.lower() for c in current):
             current = [c for c in current if c.lower() != cmd.lower()]
@@ -664,11 +690,20 @@ class CoreMod(loader.Module):
         args = utils.get_args(message)
         if not args:
             await utils.answer(message, self.strings["wrong_usage_tmc"])
+            return
 
         mod_arg = args[0]
         mod_inst = self.allmodules.lookup(mod_arg)
         if not mod_inst:
-            await utils.answer(message, self.strings["mod404"].format(mod_arg))
+            await utils.answer(
+                message, self.strings["mod404"].format(utils.escape_html(mod_arg))
+            )
+            return
+
+        if mod_inst is self:
+            # Disabling this module would also remove .togglemod itself.
+            await utils.answer(message, self.strings["togglemod_self"])
+            return
 
         module_key = mod_inst.__class__.__name__
         disabled = self._db.get(main.__name__, "disabled_modules", [])
@@ -1254,6 +1289,18 @@ class CoreMod(loader.Module):
             else self.hide_value(self.lookup(mod).config[option])
         )
 
+    def _get_short_value(self, mod: str, option: str) -> str:
+        """One-line value for the settings list: lists as `a, b` instead of a column"""
+        config = self.lookup(mod).config
+        value = config[option]
+        if not isinstance(value, list):
+            return self._get_inline_value(mod, option)
+
+        if getattr(config._config[option].validator, "internal_id", None) == "Hidden":
+            value = ["*" * len(str(item)) for item in value]
+
+        return ", ".join(self.prep_value(str(item)) for item in value) or self.prep_value("[]")
+
     def _get_inline_value(self, mod: str, option: str, limit: int = 2500) -> str:
         value = self._get_value(mod, option)
         if len(value) <= limit:
@@ -1795,12 +1842,15 @@ class CoreMod(loader.Module):
         obj_type: bool | str = False,
     ):
         try:
-            if value in self.lookup(mod).config._config[option].value:
-                self.lookup(mod).config._config[option].value.remove(value)
+            config = self.lookup(mod).config
+            # Assign a new list: in-place edits skip validation and the DB autosave.
+            current = list(config[option] or [])
+            if value in current:
+                current.remove(value)
             else:
-                self.lookup(mod).config._config[option].value += [value]
+                current.append(value)
 
-            self.lookup(mod).config.reload()
+            config[option] = current
         except loader.validators.ValidationError as e:
             await call.edit(
                 self.strings["validation_error"].format(e.args[0]),
@@ -2196,6 +2246,11 @@ class CoreMod(loader.Module):
             category=category,
         )
 
+    @staticmethod
+    def _option_link(option: str) -> dict:
+        """Rich mode: the option name in the settings list is its button"""
+        return {"inline": True, "anchor": f"<code>{utils.escape_html(option)}</code>"}
+
     async def inline__configure(
         self,
         call: InlineCall,
@@ -2210,7 +2265,7 @@ class CoreMod(loader.Module):
         grouped = module.config.grouped_options()
 
         def fmt_value(option: str) -> str:
-            value = self._get_inline_value(mod, option)
+            value = self._get_short_value(mod, option)
             if len(value) >= 200:
                 value = list(utils.smart_split(*html.parse(value), 200))[0] + "..."
             return value
@@ -2261,6 +2316,7 @@ class CoreMod(loader.Module):
                         [
                             {
                                 "text": opt,
+                                **self._option_link(opt),
                                 "callback": self.inline__configure_option,
                                 "kwargs": {
                                     "obj_type": obj_type,
@@ -2316,6 +2372,7 @@ class CoreMod(loader.Module):
                         [
                             {
                                 "text": opt,
+                                **self._option_link(opt),
                                 "callback": self.inline__configure_option,
                                 "kwargs": {
                                     "obj_type": obj_type,
@@ -2364,6 +2421,7 @@ class CoreMod(loader.Module):
                 btns += [
                     {
                         "text": opt,
+                        **self._option_link(opt),
                         "callback": self.inline__configure_option,
                         "kwargs": {"obj_type": obj_type, "mod": mod, "config_opt": opt},
                     }
@@ -2376,10 +2434,11 @@ class CoreMod(loader.Module):
                     )
                     for p in section_params
                 ]
+                header = self.strings["category_header"].format(
+                    utils.escape_html(section_name)
+                )
                 cat_text = [
-                    self.strings["category_header"].format(
-                        utils.escape_html(section_name)
-                    ),
+                    header,
                     "<blockquote expandable>" + "\n".join(cat_lines),
                     "</blockquote>",
                 ]
@@ -2387,6 +2446,8 @@ class CoreMod(loader.Module):
                 btns.append(
                     {
                         "text": f"📂 {section_name}",
+                        "inline": True,
+                        "anchor": header,
                         "callback": self.inline__configure,
                         "args": (mod,),
                         "kwargs": {"obj_type": obj_type, "category": section_name},
@@ -2525,45 +2586,51 @@ class CoreMod(loader.Module):
             for folder_name in sorted(all_folders.keys())
         ]
 
-        await utils.answer(
-            call,
-            self.strings["choose_core"],
-            reply_markup=[
-                [
-                    {
-                        "text": self.strings["builtin"],
-                        "callback": self.inline__global_config,
-                        "kwargs": {"obj_type": True},
-                    },
-                    {
-                        "text": self.strings["external"],
-                        "callback": self.inline__global_config,
-                    },
-                ],
-                *(
-                    [
-                        [
-                            {
-                                "text": self.strings["libraries"],
-                                "callback": self.inline__global_config,
-                                "kwargs": {"obj_type": "library"},
-                            }
-                        ]
-                    ]
-                    if self.allmodules.libraries
-                    and any(hasattr(lib, "config") for lib in self.allmodules.libraries)
-                    else []
-                ),
-                *list(utils.chunks(folder_btns, 2)),
-                [
-                    {
-                        "text": self.strings["close_btn"],
-                        "action": "close",
-                        "style": "danger",
-                    }
-                ],
+        markup = [
+            [
+                {
+                    "text": self.strings["builtin"],
+                    "callback": self.inline__global_config,
+                    "kwargs": {"obj_type": True},
+                },
+                {
+                    "text": self.strings["external"],
+                    "callback": self.inline__global_config,
+                },
             ],
-        )
+            *(
+                [
+                    [
+                        {
+                            "text": self.strings["libraries"],
+                            "callback": self.inline__global_config,
+                            "kwargs": {"obj_type": "library"},
+                        }
+                    ]
+                ]
+                if self.allmodules.libraries
+                and any(hasattr(lib, "config") for lib in self.allmodules.libraries)
+                else []
+            ),
+            *list(utils.chunks(folder_btns, 2)),
+            [
+                {
+                    "text": self.strings["close_btn"],
+                    "action": "close",
+                    "style": "danger",
+                }
+            ],
+        ]
+
+        if isinstance(call, Message):
+            await self.inline.form(
+                self.strings["choose_core"],
+                message=call,
+                reply_markup=markup,
+                rich_buttons=self.config["rich_mode"],
+            )
+        else:
+            await call.edit(self.strings["choose_core"], reply_markup=markup)
 
     async def _send_initial_config_form(
         self,
@@ -2586,6 +2653,7 @@ class CoreMod(loader.Module):
             message=message,
             reply_markup=draft.reply_markup,
             silent=True,
+            rich_buttons=self.config["rich_mode"],
             **form_kwargs,
         )
 
@@ -2600,6 +2668,8 @@ class CoreMod(loader.Module):
         btns = [
             {
                 "text": f"{mod_name}",
+                "inline": True,
+                "anchor": f"<b>{utils.escape_html(mod_name)}</b>",
                 "callback": self.inline__configure,
                 "kwargs": {"obj_type": False, "mod": mod_name, "folder": folder},
             }
@@ -2680,6 +2750,9 @@ class CoreMod(loader.Module):
             row = [
                 {
                     "text": btn,
+                    # In Rich mode modules are a list of links, not a keyboard
+                    "inline": True,
+                    "line": "<tg-emoji emoji-id=5253713110111365241>▫️</tg-emoji> {}",
                     "callback": self.inline__configure,
                     "args": (btn,),
                     "kwargs": {"obj_type": obj_type},

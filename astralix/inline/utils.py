@@ -19,6 +19,7 @@
 import asyncio
 import contextlib
 import functools
+import html
 import io
 import itertools
 import logging
@@ -47,6 +48,9 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 VALID_BUTTON_STYLES = {"danger", "primary", "success"}
+# Block tags break lines themselves; Telegram keeps line breaks inside <pre>.
+_RICH_BLOCK_RE = re.compile(r"\n*(</?(?:blockquote|pre)\b[^>]*>)\n*", re.IGNORECASE)
+_RICH_PRE_RE = re.compile(r"(<pre\b[^>]*>.*?</pre>)", re.IGNORECASE | re.DOTALL)
 TG_EMOJI_RE = re.compile(
     r"<tg-emoji\b[^>]*\bemoji-id\s*=\s*['\"]?\d+['\"]?[^>]*>(.*?)</tg-emoji>",
     flags=re.IGNORECASE | re.DOTALL,
@@ -54,6 +58,84 @@ TG_EMOJI_RE = re.compile(
 
 
 class Utils(InlineUnit):
+    def _rich_with_buttons(
+        self,
+        text: str,
+        reply_markup: AstralixReplyMarkup | None,
+    ) -> tuple[str, list[list[dict[str, typing.Any]]]]:
+        """
+        Telegram HTML and its keyboard as one Rich message with in-text buttons.
+        The last row stays a keyboard: Telegram gives no `inline_message_id`
+        (so no later edits) for inline messages without one.
+        Buttons with `"inline": True` become links inside the text: they replace
+        their `anchor` HTML (hidden if it is not in the text), or without one get
+        a line of their own (`line`, `{}` = the link).
+        :return: Rich HTML and the normalized rows to keep as unit buttons
+        """
+        rows = self._normalize_markup(reply_markup or [])
+        # Assigns callback data / inline queries to the buttons and registers them
+        self.generate_markup(rows)
+        body = self._rich_text(text.strip("\n"))
+        lines = []
+        for button in itertools.chain.from_iterable(rows):
+            if not button.get("inline"):
+                continue
+
+            link = self._rich_button(button, style="link")
+            if not button.get("anchor"):
+                lines.append(button.get("line", "{}").format(link))
+            # An anchor missing from the text is on another page of it
+            elif (anchor := self._rich_text(button["anchor"])) in body:
+                body = body.replace(anchor, link, 1)
+
+        if lines:
+            body += "<br>" + "<br>".join(lines)
+
+        buttons = "".join(
+            "<tg-button-row>"
+            + "".join(self._rich_button(button) for button in row)
+            + "</tg-button-row>"
+            for row in (
+                [button for button in row if not button.get("inline")]
+                for row in rows[:-1]
+            )
+            if row
+        )
+        return body + buttons, rows
+
+    @staticmethod
+    def _rich_text(text: str) -> str:
+        """Telegram HTML line breaks to Rich ones"""
+        parts = _RICH_PRE_RE.split(_RICH_BLOCK_RE.sub(r"\1", text))
+        return "".join(
+            part if index % 2 else part.replace("\n", "<br>")
+            for index, part in enumerate(parts)
+        )
+
+    def _rich_button(self, button: dict, style: str | None = None) -> str:
+        def attr(value: typing.Any) -> str:
+            return html.escape(str(value), quote=True)
+
+        if "_callback_data" in button or "data" in button:
+            kind = f'type="callback_data" data="{attr(button.get("_callback_data") or button["data"])}"'
+        elif "url" in button:
+            kind = f'type="url" url="{attr(button["url"])}"'
+        elif "_switch_query" in button:
+            kind = (
+                'type="switch_inline_query_current_chat"'
+                f' query="{attr(button["_switch_query"] + " ")}"'
+            )
+        elif "copy" in button:
+            kind = f'type="copy_text" text="{attr(button["copy"])}"'
+        else:
+            kind = 'type="disabled"'
+
+        if style := style or self._get_button_style(button):
+            kind += f' style="{style}"'
+
+        label = html.escape(str(button.get("text", "")), quote=False) or "·"
+        return f"<tg-button {kind}>{label}</tg-button>"
+
     def _has_premium_emoji(self, text: typing.Any) -> bool:
         return isinstance(text, str) and bool(TG_EMOJI_RE.search(text))
 
@@ -457,11 +539,36 @@ class Utils(InlineUnit):
             )
         )
 
+        if unit.get("rich_buttons") and media is None:
+            rich, rows = self._rich_with_buttons(
+                text if text is not None else unit.get("text", ""), reply_markup
+            )
+            try:
+                await self.bot.edit_rich_message(
+                    rich,
+                    reply_markup=self.generate_markup(rows[-1:]) if rows else None,
+                    **(
+                        {"inline_message_id": inline_message_id}
+                        if inline_message_id
+                        else {"chat_id": chat_id, "message_id": message_id}
+                    ),
+                )
+            except MessageNotModifiedError:
+                pass
+            except Exception:
+                logger.exception("Can't edit Rich form %s", unit_id)
+                return False
+
+            pending_unit_update.update(buttons=rows, rich_message=rich)
+            commit_unit_update()
+            return True
+
         if media is None and text is None and reply_markup:
             try:
                 await self._bot_client.edit_message(
                     inline_message_id or chat_id,
-                    (unit.get("text") or "") if inline_message_id else message_id,
+                    # No text for inline messages: edit only the markup, keep text and media.
+                    None if inline_message_id else message_id,
                     buttons=self.generate_markup(reply_markup),
                 )
             except Exception:
@@ -601,6 +708,12 @@ class Utils(InlineUnit):
                 self._units[unit_id]["on_unload"]
             ):
                 self._units[unit_id]["on_unload"]()
+
+            # Page buttons get fresh callback ids on every click; drop this unit's.
+            for key, entry in list(self._custom_map.items()):
+                handler = entry.get("handler")
+                if getattr(handler, "keywords", {}).get("unit_id") == unit_id:
+                    del self._custom_map[key]
 
             if unit_id in self._units:
                 del self._units[unit_id]

@@ -68,6 +68,7 @@ CONSTRUCTORS = {
     and TLRequest in cur_entity.__bases__
     and hasattr(cur_entity, "CONSTRUCTOR_ID")
 }
+FORBIDDABLE_METHODS = ["sendReaction", "joinChannel", "importChatInvite"]
 
 
 _MODULE_FRAME_RE = re.compile(r"astralix\.modules\.([^>]+)")
@@ -147,28 +148,26 @@ class APIRatelimiterMod(loader.Module):
                 "forbidden_methods",
                 ["joinChannel", "importChatInvite"],
                 lambda: self.strings["_cfg_forbidden_methods"],
-                validator=loader.validators.MultiChoice(
-                    [
-                        "sendReaction",
-                        "joinChannel",
-                        "importChatInvite",
-                    ]
-                ),
+                validator=loader.validators.MultiChoice(FORBIDDABLE_METHODS),
                 on_change=self.on_forbidden_methods_update,
             ),
         )
 
     async def client_ready(self):
+        # Values loaded from the DB skip on_change, so apply them once here.
+        await self.on_forbidden_methods_update()
         asyncio.ensure_future(self._install_protection())
 
     async def on_forbidden_methods_update(self):
+        # Replace only the methods this option manages, so unticking one lifts it.
+        managed = {CONSTRUCTORS[method] for method in FORBIDDABLE_METHODS}
+        self._client._forbidden_constructors = [
+            ctor
+            for ctor in self._client._forbidden_constructors
+            if ctor not in managed
+        ]
         self._client.forbid_constructors(
-            list(
-                map(
-                    lambda x: CONSTRUCTORS[x],
-                    self.config["forbidden_methods"],
-                )
-            )
+            [CONSTRUCTORS[method] for method in self.config["forbidden_methods"]]
         )
 
     async def _install_protection(self):

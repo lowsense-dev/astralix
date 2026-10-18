@@ -45,7 +45,11 @@ def normalize_language(language: str) -> str:
 
 
 def normalize_language_token(language: str) -> str:
-    return language if utils.check_url(language) else normalize_language(language)
+    return language if is_external_pack(language) else normalize_language(language)
+
+
+def is_external_pack(language: str) -> bool:
+    return language.startswith("pack:") or utils.check_url(language)
 
 
 def iter_language_codes(language: str) -> typing.Iterator[str]:
@@ -235,6 +239,13 @@ class Translator(BaseTranslator):
         any_ = False
         if lang := self.db.get(__name__, "lang", False):
             for language in map(normalize_language_token, lang.split()):
+                if language.startswith("pack:"):
+                    data = self.db.get(__name__, "file_packs", {}).get(language)
+                    if isinstance(data, dict):
+                        self._data.update(data)
+                        self.raw_data[language] = data
+                        any_ = True
+                    continue
                 if utils.check_url(language):
                     try:
                         data = self._get_pack_raw(

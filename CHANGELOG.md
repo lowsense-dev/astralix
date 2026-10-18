@@ -1,6 +1,90 @@
 что.ты.заказала.
 # astralix Changelog
 
+## astralix 1.2.0
+
+### Interface
+
+- Style English and Russian messages with the Telegram Android Icons custom emoji pack: message emoji are wrapped in `<tg-emoji>` with the plain emoji as the fallback. Buttons, alerts, inline-query titles, config descriptions and escaped error text stay plain, because custom emoji markup cannot render there.
+- Add leading emoji to the remaining English and Russian messages and fix the Russian text shown after declining a channel subscription.
+- Show `.cfg` as a Rich message: option names, category headers and modules are tappable links inside the text, list values fit on one line and only navigation stays as a keyboard. The new Settings `rich_mode` option, enabled by default, switches back to the keyboard layout.
+- Send inline forms, lists and galleries as a reply to the message the command replied to, or to the command itself, and delete the command only after the form has been sent. A forum topic root does not count as a reply.
+- Add `rich_buttons=True` to `inline.form`: the keyboard becomes `<tg-button>` rows inside the Rich text and later `call.edit` calls stay Rich. Buttons marked `inline` become links that replace their `anchor` or get a line of their own; the last row stays a keyboard so the form can still be edited.
+- Make `.changelog` show the whole latest release section and escape its markup.
+- Refactor Rich delivery in utils into a dedicated routing function; edit inline cards in place instead of deleting and recreating them, validate markup and preserve forum-topic context for native sends.
+- Improve Rich-to-HTML conversion to preserve text entities, paragraphs, open details, collapsed quotes and cover contents. Return plain text from Rich `raw_text` and clear stale Rich state when ordinary text replaces it.
+- Support missing-image fallback for both `rich_message=` and `rich=True` calls.
+- Refine Rich terminal output: show the command as labeled inline code (`Command: <code>…</code>`), keep non-empty stdout/stderr collapsible and hide empty or whitespace-only output sections in both ordinary and Rich modes.
+- Add the four-piece astralix Premium emoji logo with a plain-text fallback, including a Premium check for the updater stop message.
+- Add `{title}` to info and ping placeholder providers and default ordinary/Rich templates; custom templates can use the same placeholder.
+- Add independent Astralix `atx_rich_mode`, enabled by default, while `rich_mode` continues to control `.info`.
+- Refine English and Russian menu layouts, configuration feedback, collections, permissions, repository installation, confirmations and language selection; escape command usage in messages.
+- Rename `.dllangpack` to `.loadlangpack`; accept a raw pack URL or a reply to a translation-pack file.
+- Validate translation packs before saving. Store uploaded packs in the account database, restore them after restart and expose them in the downloaded-language menu.
+
+### Data safety
+
+- Flush delayed Redis saves before every restart, so restores and secure-boot flags are not lost, and keep saving after a failed Redis write.
+- Keep an unreadable config file as `*.corrupt-<time>` instead of replacing it with an empty database, and keep the newest database revisions as deep copies.
+- Delete a session file only on `AuthKeyDuplicatedError`; any other `TypeError` while starting a session keeps the login.
+- Refuse `.restoredb` and `.restoreall` input that is not an astralix database, report a failed save instead of restarting, and send `.backupdb` as a file when the Backups topic is missing.
+- Back up only this account's module files and store restored files under the current account, so accounts on one host never overwrite each other's sources.
+- Keep backups and assets working after the content channel is renamed and stop rebuilding the backup archive every second when the Backups topic is missing.
+- Recover missing asset forum peers through the private content channel and resolve numeric forum and content-channel IDs as channels.
+- Make `.ulm -f` remove only the unloaded modules' own database keys and never core settings, and apply `-f` to every module in `.ulm -f A, B`.
+- Keep cached module sources that other accounts still use when one account runs `clearmodules`.
+
+### Updates
+
+- Fetch and list pending updates in a background thread, so `.update` no longer blocks every account.
+- Roll the checkout back when `uv sync` fails or times out, so `.update` can retry instead of reporting the version as current.
+- Install only the commit that was shown from the update notification and from the module version prompt.
+
+### Security
+
+- Apply chat blocklists and whitelists to watchers.
+- Count commands for the per-chat rate limit.
+- Apply forbidden API methods at startup, allow unticking them, and keep the protection working on Python 3.13+.
+- Expire timed security-group rules.
+- Redact secrets in `.terminal` and compiled `.e*` output, and run compilers in a thread.
+
+### Fixes
+
+- Expire inline units without a TTL after a day and drop their page callbacks.
+- Keep the text of inline messages when only their buttons are edited.
+- Save MultiChoice config toggles reliably.
+- Stop `.togglemod` after errors and refuse to disable Settings; fix `.togglecmd` single-command lookup and error exits.
+- Fix `utils.format_file_size`, the `EntityLike` validator and the missing Python 3.10 `tomli` requirement in `requirements.txt`.
+- Add `coddrago` to project maintainer metadata.
+- Bump the version to `1.2.0` in `astralix/version.py`, `pyproject.toml` and `uv.lock`.
+
+### Transport
+
+- `astralix-tl` moved to Telegram API layer 230 on its main branch. The userbot still pins the published `astralix-tl==1.0.0` until a new transport release is published.
+
+## astralix 1.1.5
+
+### Commands and terminal
+
+- Add `.addalias -i/--inline alias command`, `.aliases -i` and `.delalias -i [alias|--clear]` for persistent inline-command aliases.
+- Allow inline aliases in bot queries and as ordinary prefixed commands through `.inlinecall`, preserving result buttons, replies and topics. Existing ordinary commands take precedence; terminal execution still requires its Execute confirmation.
+- Add a Next command button to ordinary `.terminal` and `.exec` cards and prevent concurrent commands in a busy session.
+- Continue commands in the existing sticky shell, retaining its working directory, variables and functions while showing the latest result on the same card.
+- Add Terminal `rich_mode` with collapsible command, stdout and stderr sections, localized status messages and buttons.
+- Fix empty Rich terminal sections causing `RICH_MESSAGE_CONTENT_REQUIRED` and replace the generic inline invocation failure with a localized message and error details.
+- Expand consistent English and Russian styling across help, settings, loader, updater, security, backups, terminal and inline menus.
+- Bump the version to `1.1.5` in `astralix/version.py`, `pyproject.toml` and `uv.lock`.
+
+## astralix 1.1.4
+
+- Consolidate `.cfg` and settings commands in Core, move `.tr` into Translations and move `.restart` into Tester while retaining the restart engine in Updater.
+- Move `.astralix` into the info module and rename that module to Astralix; remove the redundant configuration, settings and translation modules.
+- Remove default banners from info, ping, help and settings while retaining avatars; remove banner rendering from `.astralix` entirely.
+- Make `.e -so` show completion feedback instead of silently returning.
+- Add `.cfg -r/--reset` support for resetting multiple options separated by newlines or `&&`.
+- Refresh English and Russian core interface wording, emoji, menus and settings buttons; synchronize translation keys and fix help-text markup.
+- Bump the version to `1.1.4`.
+
 ## astralix 1.1.3
 
 - Refresh the startup log message in English and Russian with version, build, platform and prefix blocks.

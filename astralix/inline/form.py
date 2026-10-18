@@ -87,6 +87,7 @@ class Form(InlineUnit):
         rich_message: typing.Any = None,
         silent: bool = False,
         reply_to: Message | int | None = None,
+        rich_buttons: bool = False,
     ) -> InlineMessage | bool:
         """
         Send inline form to chat
@@ -117,6 +118,8 @@ class Form(InlineUnit):
         :param silent: Whether the form must be sent silently (w/o "Opening form..." message)
         :param reply_to: Message or message ID to reply to. If passed, the form will be sent
                          as a reply to this message
+        :param rich_buttons: Send `text` as a Rich message with `reply_markup` as in-text
+                             buttons; later `call.edit` of this form stays Rich too
         :return: If form is sent, returns :obj:`InlineMessage`, otherwise returns `False`
         """
         if reply_markup is None:
@@ -133,7 +136,10 @@ class Form(InlineUnit):
             return False
 
         text = self.sanitise_text(text)
-        needs_premium_emoji_pre_edit = self._needs_premium_emoji_pre_edit(text)
+        # A plain-text pre-edit would replace a Rich card that has no in-text buttons.
+        needs_premium_emoji_pre_edit = self._needs_premium_emoji_pre_edit(text) and (
+            rich_message is None or rich_buttons
+        )
 
         if not isinstance(silent, bool):
             logger.error(
@@ -263,6 +269,9 @@ class Form(InlineUnit):
 
         reply_markup = self._validate_markup(reply_markup) or []
 
+        if rich_buttons:
+            rich_message, reply_markup = self._rich_with_buttons(text, reply_markup)
+
         if not isinstance(force_me, bool):
             logger.error(
                 "Invalid type for `force_me`. Expected `bool`, got `%s`",
@@ -341,6 +350,7 @@ class Form(InlineUnit):
             **({"location": location} if location else {}),
             **({"audio": audio} if audio else {}),
             **({"rich_message": rich_message} if rich_message is not None else {}),
+            **({"rich_buttons": True} if rich_buttons else {}),
             **({"file": file, "mime_type": mime_type} if file else {}),
             **({"perms_map": perms_map} if perms_map else {}),
             **({"message": message} if isinstance(message, Message) else {}),
@@ -485,7 +495,7 @@ class Form(InlineUnit):
         try:
             match True:
                 case _ if "rich_message" in form:
-                    rich_value = form["rich_message"]
+                    rich_value = "✨" if form.get("premium_emoji_pre_edit") else form["rich_message"]
                     if not isinstance(rich_value, str):
                         raise TypeError("Inline bot Rich forms require HTML text")
                     await inline_query.answer(
@@ -493,7 +503,10 @@ class Form(InlineUnit):
                             await inline_query.rich_article(
                                 title="astralix",
                                 html=rich_value,
-                                buttons=self.generate_markup(form["uid"]),
+                                # rich_buttons forms keep only their last row as a keyboard
+                                buttons=self.generate_markup(
+                                    form["buttons"][-1:] if form.get("rich_buttons") else form["uid"]
+                                ),
                                 id=utils.rand(20),
                             )
                         ],

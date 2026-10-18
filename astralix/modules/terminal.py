@@ -29,6 +29,7 @@ import signal
 import astralixtl
 
 from .. import loader, utils
+from .._internal import redact
 from .._terminal import ShellSession, SessionBusy
 
 logger = logging.getLogger(__name__)
@@ -75,11 +76,11 @@ class MessageEditor:
         self.start_time = time.time()
 
     async def update_stdout(self, stdout):
-        self.stdout = stdout
+        self.stdout = redact(stdout)
         await self.redraw()
 
     async def update_stderr(self, stderr):
-        self.stderr = stderr
+        self.stderr = redact(stderr)
         await self.redraw()
 
     async def redraw(self):
@@ -88,9 +89,10 @@ class MessageEditor:
         if self.rc is not None:
             text += self.strings["finished"].format(utils.escape_html(str(self.rc)))
 
-        text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
+        if self.stdout[-2048:].strip():
+            text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
         stderr = utils.escape_html(self.stderr[max(len(self.stderr) - 1024, 0) :])
-        text += self.strings["stderr"].format(stderr) if stderr else ""
+        text += self.strings["stderr"].format(stderr) if stderr.strip() else ""
 
         if self.rc is not None:
             exec_time = time.time() - self.start_time
@@ -125,7 +127,8 @@ class SudoMessageEditor(MessageEditor):
 
     async def update_stderr(self, stderr):
         async with self._output_lock:
-            self.stderr = stderr
+            # Output can contain the account's own secrets (env, config files).
+            self.stderr = redact(stderr)
             if self.inline_editor is None and InlineMessageEditor.password_requested(stderr):
                 module = self.request_message.client.loader.lookup("TerminalMod")
                 editor = InlineMessageEditor(
@@ -159,7 +162,7 @@ class SudoMessageEditor(MessageEditor):
 
     async def update_stdout(self, stdout):
         async with self._output_lock:
-            self.stdout = stdout
+            self.stdout = redact(stdout)
             if self.inline_editor is not None:
                 await self.inline_editor.update_stdout(stdout)
             else:
@@ -332,11 +335,11 @@ class InlineMessageEditor:
         self.process = process
 
     async def update_stdout(self, stdout):
-        self.stdout = stdout
+        self.stdout = redact(stdout)
         await self.redraw()
 
     async def update_stderr(self, stderr):
-        self.stderr = stderr
+        self.stderr = redact(stderr)
         self.observe_password_prompt()
         await self.redraw()
 
@@ -349,9 +352,13 @@ class InlineMessageEditor:
 
             text = self.strings["rich_output"].format(
                 command=content(self.command),
-                stdout=content(self.stdout[-2048:]),
-                stderr=content(self.stderr[-1024:]),
             )
+            for key, output in (
+                ("rich_stdout", self.stdout[-2048:]),
+                ("rich_stderr", self.stderr[-1024:]),
+            ):
+                if output.strip():
+                    text += self.strings[key].format(utils.escape_html(output))
             text += (
                 self.strings["rich_finished"].format(
                     code=self.rc, seconds=round(time.time() - self.start_time, 2),
@@ -365,9 +372,10 @@ class InlineMessageEditor:
         if self.rc is not None:
             text += self.strings["finished"].format(utils.escape_html(str(self.rc)))
 
-        text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
+        if self.stdout[-2048:].strip():
+            text += self.strings["stdout"].format(utils.escape_html(self.stdout[-2048:]))
         stderr = utils.escape_html(self.stderr[max(len(self.stderr) - 1024, 0) :])
-        text += self.strings["stderr"].format(stderr) if stderr else ""
+        text += self.strings["stderr"].format(stderr) if stderr.strip() else ""
 
         if self.rc is not None:
             exec_time = time.time() - self.start_time

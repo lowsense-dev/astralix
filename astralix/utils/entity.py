@@ -395,6 +395,15 @@ async def asset_forum_topic(
     icon_emoji_id: int | None = None,
     invite_bot: bool = False,
 ) -> ForumTopic:
+    if peer is None or (isinstance(peer, int) and not peer):
+        peer = await db.ensure_content_channel()
+
+    if isinstance(peer, int):
+        channel_id, peer_type = astralixtl.utils.resolve_id(peer)
+        if not channel_id or (peer < 0 and peer_type is not PeerChannel):
+            raise ValueError("Expected a nonzero forum channel ID")
+        peer = PeerChannel(channel_id)
+
     entity = await client.get_entity(peer)
 
     if not isinstance(entity, Channel):
@@ -432,6 +441,13 @@ async def asset_forum_topic(
         return result.topics[0]
 
     forums_cache = db.pointer("astralix.forums", "forums_cache", {})
+    # get_topic_id and store_asset read the content channel under a fixed key,
+    # so a renamed channel must not move its topics elsewhere.
+    cache_key = (
+        "astralix-userbot"
+        if entity.id == db.get("astralix.forums", "channel_id", None)
+        else entity.title
+    )
 
     async def _search_topic(topic_title: str) -> int | None:
         result = await client(
@@ -448,11 +464,11 @@ async def asset_forum_topic(
             if isinstance(found_topic, ForumTopicDeleted):
                 continue
             if found_topic.title == topic_title:
-                forums_cache.setdefault(entity.title, {})[topic_title] = found_topic.id
+                forums_cache.setdefault(cache_key, {})[topic_title] = found_topic.id
                 return found_topic.id
         return None
 
-    if topic_id := forums_cache.get(entity.title, {}).get(title) or await _search_topic(
+    if topic_id := forums_cache.get(cache_key, {}).get(title) or await _search_topic(
         title
     ):
         await fw_protect()
@@ -467,12 +483,12 @@ async def asset_forum_topic(
             )
             await fw_protect()
             new_topic = await create_topic()
-            forums_cache[entity.title][title] = new_topic.id
+            forums_cache.setdefault(cache_key, {})[title] = new_topic.id
 
     else:
         await fw_protect()
         new_topic = await create_topic()
-        forums_cache.setdefault(entity.title, {})[title] = new_topic.id
+        forums_cache.setdefault(cache_key, {})[title] = new_topic.id
 
     if invite_bot:
         await fw_protect()

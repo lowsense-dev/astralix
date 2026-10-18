@@ -153,6 +153,12 @@ class AstralixBackupMod(loader.Module):
                 self.get("last_backup") + self.get("period") - time.time()
             )
 
+            backup_topic_id = await utils.get_topic_id(self._db, "Backups")
+            if not backup_topic_id:
+                logger.error("Backups topic not found in database")
+                await asyncio.sleep(60)
+                return
+
             db = io.BytesIO(
                 orjson.dumps(
                     self._db, option=orjson.OPT_INDENT_2 | orjson.OPT_NON_STR_KEYS
@@ -164,7 +170,7 @@ class AstralixBackupMod(loader.Module):
             with zipfile.ZipFile(mods, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for root, _, files in os.walk(loader.LOADED_MODULES_DIR):
                     for file in files:
-                        if file.endswith(f"{self.tg_id}.py"):
+                        if file.endswith(f"_{self.tg_id}.py"):
                             with open(os.path.join(root, file), "rb") as f:
                                 zipf.writestr(file, f.read())
                 zipf.writestr(
@@ -184,11 +190,6 @@ class AstralixBackupMod(loader.Module):
                 z.writestr("mods.zip", mods.getvalue())
 
             archive.name = f"backup-{datetime.datetime.now():%d-%m-%Y-%H-%M}.backup"
-
-            backup_topic_id = await utils.get_topic_id(self._db, "Backups")
-            if not backup_topic_id:
-                logger.error("Backups topic not found in database")
-                return
 
             await self._assert_backup_destination()
             await self.inline.bot.send_document(
@@ -242,7 +243,9 @@ class AstralixBackupMod(loader.Module):
             await self.invoke("restart", "-f", peer=call.message.chat.id)
         except Exception:
             logger.exception("Restore from backupall failed")
-            await call.answer(self.strings["reply_to_file"], show_alert=True)
+            await call.answer(
+                utils.remove_html(self.strings["reply_to_file"]), show_alert=True
+            )
 
     def _restore_archive(self, file):
         if len(file) > MAX_ARCHIVE_SIZE:
@@ -252,14 +255,29 @@ class AstralixBackupMod(loader.Module):
             db_mods, files = module_plan(read_entry(zf, "mods.zip", MAX_ARCHIVE_SIZE))
         with contextlib.suppress(KeyError):
             db_data["astralix.inline"].pop("bot_token")
-        if not self._db.process_db_autofix(db_data):
-            raise RuntimeError("Attempted to restore broken database")
-        for name, content in files.items():
-            private_write(loader.LOADED_MODULES_PATH / name, content)
+        self._check_restored_db(db_data)
+        self._write_modules(files)
         self._db.clear()
-        self._db.update(**db_data)
+        self._db.update(db_data)
         self.lookup("LoaderMod").set("loaded_modules", db_mods)
-        self._db.save()
+        if not self._db.save():
+            raise RuntimeError("Failed to save the restored database")
+
+    def _check_restored_db(self, db_data):
+        """Refuse data that would replace the database with something unusable"""
+        if not isinstance(db_data, dict) or not self._db.process_db_autofix(db_data):
+            raise RuntimeError("Attempted to restore broken database")
+        if not any(str(key).startswith("astralix.") for key in db_data):
+            raise RuntimeError("This file is not an astralix database backup")
+
+    def _write_modules(self, files: dict[str, bytes]):
+        # Files may come from another account; store them under this account's suffix
+        # so restoring never overwrites the other account's module sources.
+        for name, content in files.items():
+            base = re.sub(r"_\d+$", "", name[:-3])
+            private_write(
+                loader.LOADED_MODULES_PATH / f"{base}_{self.tg_id}.py", content
+            )
 
     def _convert(self, backup):
         fixed = re.sub(r"(hikka\.)(\S+\":)", lambda m: "astralix." + m.group(2), backup)
@@ -303,7 +321,13 @@ class AstralixBackupMod(loader.Module):
         backup_topic_id = await utils.get_topic_id(self._db, "Backups")
         if not backup_topic_id:
             logger.error("Backups topic not found in database")
-            await utils.answer(message, self.strings["backup_sent"])
+            await utils.answer_file(
+                message,
+                txt,
+                caption=self.strings["backup_caption"].format(
+                    prefix=utils.escape_html(self.get_prefix())
+                ),
+            )
             return
 
         await self._assert_backup_destination()
@@ -343,7 +367,7 @@ class AstralixBackupMod(loader.Module):
 
             decoded_text = orjson.loads(file.decode())
 
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, orjson.JSONDecodeError):
             await utils.answer(
                 message, self.strings["probably_zip"].format(self.get_prefix())
             )
@@ -373,15 +397,20 @@ class AstralixBackupMod(loader.Module):
             )
             return
 
-        with contextlib.suppress(KeyError):
+        with contextlib.suppress(KeyError, AttributeError, TypeError):
             decoded_text["astralix.inline"].pop("bot_token")
 
-        if not self._db.process_db_autofix(decoded_text):
-            raise RuntimeError("Attempted to restore broken database")
+        try:
+            self._check_restored_db(decoded_text)
+        except RuntimeError:
+            logger.exception("Refused to restore database")
+            await utils.answer(message, self.strings["reply_to_file"])
+            return
 
         self._db.clear()
-        self._db.update(**decoded_text)
-        self._db.save()
+        self._db.update(decoded_text)
+        if not self._db.save():
+            raise RuntimeError("Failed to save the restored database")
 
         await utils.answer(message, self.strings["db_restored"])
         await self.invoke("restart", "-f", peer=message.peer_id)
@@ -401,7 +430,7 @@ class AstralixBackupMod(loader.Module):
         with zipfile.ZipFile(result, "w", zipfile.ZIP_DEFLATED) as zipf:
             for root, _, files in os.walk(loader.LOADED_MODULES_DIR):
                 for file in files:
-                    if file.endswith(f"{self.tg_id}.py"):
+                    if file.endswith(f"_{self.tg_id}.py"):
                         with open(os.path.join(root, file), "rb") as f:
                             zipf.writestr(file, f.read())
                             mods_quantity += 1
@@ -466,8 +495,7 @@ class AstralixBackupMod(loader.Module):
                 file.name = "mods.zip"
 
                 db_mods, files = module_plan(file.getvalue())
-                for name, content in files.items():
-                    private_write(loader.LOADED_MODULES_PATH / name, content)
+                self._write_modules(files)
                 self.lookup("LoaderMod").set("loaded_modules", db_mods)
             except Exception:
                 logger.exception("Unable to restore modules")
@@ -496,7 +524,7 @@ class AstralixBackupMod(loader.Module):
         with zipfile.ZipFile(mods, "w", zipfile.ZIP_DEFLATED) as zipf:
             for root, _, files in os.walk(loader.LOADED_MODULES_DIR):
                 for file in files:
-                    if file.endswith(f"{self.tg_id}.py"):
+                    if file.endswith(f"_{self.tg_id}.py"):
                         with open(os.path.join(root, file), "rb") as f:
                             zipf.writestr(file, f.read())
             zipf.writestr(

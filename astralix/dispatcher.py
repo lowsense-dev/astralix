@@ -113,8 +113,6 @@ class CommandDispatcher:
             self._ratelimit_storage_user[message.sender_id] = user
             if user > self._ratelimit_max_user:
                 ret = False
-            else:
-                self._ratelimit_storage_chat[message.chat_id] = chat
 
             _decrement_ratelimit(
                 self._ratelimit_max_user * severity,
@@ -128,6 +126,7 @@ class CommandDispatcher:
             )
 
         chat += severity
+        self._ratelimit_storage_chat[message.chat_id] = chat
 
         if chat > self._ratelimit_max_chat:
             ret = False
@@ -612,6 +611,7 @@ class CommandDispatcher:
             whitelist_chats and chat_id not in whitelist_chats
         ):
             logger.debug("Message is blocklisted")
+            return
 
         for func in self._modules.watchers:
             bl = self._db.get(main.__name__, "disabled_watchers", {})
