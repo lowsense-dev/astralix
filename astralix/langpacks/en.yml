@@ -294,6 +294,7 @@ settings:
   cmc_done: "<tg-emoji emoji-id=6007942490076745785>🧹</tg-emoji> <b>Cleared DB for module {}</b>"
   mod_enabled: "<tg-emoji emoji-id=5776375003280838798>✅</tg-emoji> Module {} enabled"
   mod_disabled: "<tg-emoji emoji-id=5877413297170419326>⏸</tg-emoji> Module {} disabled"
+  _cfg_rich_mode: "Show .cfg as a Rich message with its buttons inside the text."
   togglemod_self: "<tg-emoji emoji-id=5872829476143894491>🚫</tg-emoji> <b>This module can't be disabled: it holds the command that turns modules back on</b>"
   cmd_enabled: "<tg-emoji emoji-id=5776375003280838798>✅</tg-emoji> Command {} enabled in module {}"
   cmd_disabled: "<tg-emoji emoji-id=5877413297170419326>⏸</tg-emoji> Command {} disabled in module {}"

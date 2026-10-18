@@ -260,6 +260,7 @@ settings:
   cmc_done: "<tg-emoji emoji-id=6007942490076745785>🧹</tg-emoji> <b>База данных очищена для модуля {}</b>"
   mod_enabled: "<tg-emoji emoji-id=5776375003280838798>✅</tg-emoji> Модуль {} включён"
   mod_disabled: "<tg-emoji emoji-id=5877413297170419326>⏸</tg-emoji> Модуль {} отключён"
+  _cfg_rich_mode: "Показывать .cfg как Rich-сообщение с кнопками внутри текста."
   togglemod_self: "<tg-emoji emoji-id=5872829476143894491>🚫</tg-emoji> <b>Этот модуль нельзя отключить: в нём команда, которая включает модули обратно</b>"
   cmd_enabled: "<tg-emoji emoji-id=5776375003280838798>✅</tg-emoji> Команда {} включена в модуле {}"
   cmd_disabled: "<tg-emoji emoji-id=5877413297170419326>⏸</tg-emoji> Команда {} отключена в модуле {}"

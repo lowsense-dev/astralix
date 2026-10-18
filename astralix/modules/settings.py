@@ -106,6 +106,12 @@ class CoreMod(loader.Module):
                 "just emoji in .aliases",
             ),
             loader.ConfigValue(
+                "rich_mode",
+                True,
+                lambda: self.strings["_cfg_rich_mode"],
+                validator=loader.validators.Boolean(),
+            ),
+            loader.ConfigValue(
                 "cfg_emoji",
                 "✨",
                 "Change emoji when opening config",
@@ -2557,45 +2563,51 @@ class CoreMod(loader.Module):
             for folder_name in sorted(all_folders.keys())
         ]
 
-        await utils.answer(
-            call,
-            self.strings["choose_core"],
-            reply_markup=[
-                [
-                    {
-                        "text": self.strings["builtin"],
-                        "callback": self.inline__global_config,
-                        "kwargs": {"obj_type": True},
-                    },
-                    {
-                        "text": self.strings["external"],
-                        "callback": self.inline__global_config,
-                    },
-                ],
-                *(
-                    [
-                        [
-                            {
-                                "text": self.strings["libraries"],
-                                "callback": self.inline__global_config,
-                                "kwargs": {"obj_type": "library"},
-                            }
-                        ]
-                    ]
-                    if self.allmodules.libraries
-                    and any(hasattr(lib, "config") for lib in self.allmodules.libraries)
-                    else []
-                ),
-                *list(utils.chunks(folder_btns, 2)),
-                [
-                    {
-                        "text": self.strings["close_btn"],
-                        "action": "close",
-                        "style": "danger",
-                    }
-                ],
+        markup = [
+            [
+                {
+                    "text": self.strings["builtin"],
+                    "callback": self.inline__global_config,
+                    "kwargs": {"obj_type": True},
+                },
+                {
+                    "text": self.strings["external"],
+                    "callback": self.inline__global_config,
+                },
             ],
-        )
+            *(
+                [
+                    [
+                        {
+                            "text": self.strings["libraries"],
+                            "callback": self.inline__global_config,
+                            "kwargs": {"obj_type": "library"},
+                        }
+                    ]
+                ]
+                if self.allmodules.libraries
+                and any(hasattr(lib, "config") for lib in self.allmodules.libraries)
+                else []
+            ),
+            *list(utils.chunks(folder_btns, 2)),
+            [
+                {
+                    "text": self.strings["close_btn"],
+                    "action": "close",
+                    "style": "danger",
+                }
+            ],
+        ]
+
+        if isinstance(call, Message):
+            await self.inline.form(
+                self.strings["choose_core"],
+                message=call,
+                reply_markup=markup,
+                rich_buttons=self.config["rich_mode"],
+            )
+        else:
+            await call.edit(self.strings["choose_core"], reply_markup=markup)
 
     async def _send_initial_config_form(
         self,
@@ -2618,6 +2630,7 @@ class CoreMod(loader.Module):
             message=message,
             reply_markup=draft.reply_markup,
             silent=True,
+            rich_buttons=self.config["rich_mode"],
             **form_kwargs,
         )
 
