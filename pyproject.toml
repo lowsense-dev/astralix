@@ -6,7 +6,7 @@ description = "astralix Userbot"
 requires-python = ">=3.10"
 license = "AGPL-3.0-only"
 dependencies = [
-    "astralix-tl==1.0.0",
+    "astralix-tl==1.1.0",
     "pyaes",
     "gitpython==3.1.60",
     "deep-translator==1.11.4",
