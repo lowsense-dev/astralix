@@ -60,7 +60,7 @@
 
 ### Transport
 
-- Require `astralix-tl==1.1.0`, which moves the transport to Telegram API layer 230 (wallet and TON types, new updates, bot username management). `.update` installs it through `uv sync` because `uv.lock` changes.
+- Require `astralix-tl==1.2.0`, which moves the transport to Telegram API layer 231: layer 230 adds wallet and TON types, new updates and bot username management, layer 231 adds TON Connect sessions to URL authorization. `.update` installs it through `uv sync` because `uv.lock` changes.
 
 ## astralix 1.1.5
 
