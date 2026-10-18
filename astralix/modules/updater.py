@@ -277,15 +277,12 @@ class UpdaterMod(loader.Module):
     @loader.command()
     async def changelog(self, message: Message):
         """Shows the changelog of the last major update"""
-        with open("CHANGELOG.md", encoding="utf-8") as f:
-            changelog = f.read().split("##")[1].strip()
-        if (await self._client.get_me()).premium:
-            changelog.replace(
-                "🌑 astralix",
-                "<tg-emoji emoji-id=5192765204898783881>🌘</tg-emoji><tg-emoji emoji-id=5195311729663286630>🌘</tg-emoji><tg-emoji emoji-id=5195045669324201904>🌘</tg-emoji>",
-            )
-
-        await utils.answer(message, self.strings["changelog"].format(changelog))
+        changelog = (PROJECT_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        # The newest release is the first "## " section, its "###" headings included.
+        latest = changelog.split("\n## ", 2)[1].strip()
+        await utils.answer(
+            message, self.strings["changelog"].format(utils.escape_html(latest))
+        )
 
     @staticmethod
     def _serialize_inline_message_id(
