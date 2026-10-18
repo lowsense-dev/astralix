@@ -557,11 +557,7 @@ class InlineManager(
 
         return await q[0].click(
             utils.get_chat_id(message) if isinstance(message, Message) else message,
-            reply_to=(
-                reply_to
-                if reply_to is not None
-                else (
-                    message.reply_to_msg_id if isinstance(message, Message) else None
-                )
-            ),
+            # Reply to what the command replied to, or to the command itself;
+            # callers delete the command only after this message exists.
+            reply_to=reply_to if reply_to is not None else utils.get_reply_target(message),
         )

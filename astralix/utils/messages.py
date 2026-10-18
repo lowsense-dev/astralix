@@ -75,6 +75,27 @@ def get_topic(message: Message) -> int | None:
     return None
 
 
+def get_reply_target(message: Message) -> int | None:
+    """
+    Get the message an answer should reply to: the message the command
+    replied to, otherwise the command itself
+    :param message: Command message
+    :return: Message id or None if `message` is not a message
+    """
+    if not isinstance(message, Message):
+        return None
+
+    reply_to = message.reply_to
+    # Inside a forum topic every message "replies" to the topic root.
+    if (
+        isinstance(reply_to, MessageReplyHeader)
+        and reply_to.reply_to_msg_id
+        and not (reply_to.forum_topic and not reply_to.reply_to_top_id)
+    ):
+        return reply_to.reply_to_msg_id
+    return message.id
+
+
 def mime_type(message: Message) -> str:
     """
     Get mime type of document in message
@@ -347,7 +368,7 @@ async def _answer_rich(message, content, response, reply_markup, options):
 
     reply_to = options.get("reply_to")
     if reply_to is None:
-        reply_to = getattr(message, "reply_to_msg_id", None) or get_topic(message)
+        reply_to = get_reply_target(message)
 
     premium = getattr(getattr(message.client, "astralix_me", None), "premium", False)
     if reply_markup or not premium:
@@ -466,6 +487,7 @@ async def answer(
                 return
 
             reply_markup = message.client.loader.inline._normalize_markup(reply_markup)
+            kwargs.setdefault("reply_to", get_reply_target(message))
             result = await message.client.loader.inline.form(
                 response,
                 message=message if message.out else get_chat_id(message),
