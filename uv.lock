@@ -205,7 +205,7 @@ speedups = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = "==3.14.3" },
-    { name = "astralix-tl", specifier = "==1.0.0" },
+    { name = "astralix-tl", specifier = "==1.1.0" },
     { name = "bs4", marker = "extra == 'media'" },
     { name = "certifi", specifier = "==2024.8.30" },
     { name = "cryptography", specifier = "==50.0.1" },
@@ -232,16 +232,16 @@ provides-extras = ["media", "speedups"]
 
 [[package]]
 name = "astralix-tl"
-version = "1.0.0"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bs4" },
     { name = "pyaes" },
     { name = "rsa" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a4/0b/93b2ccd47b10551333be4167b852251590162713907f6238325edcc09db2/astralix_tl-1.0.0.tar.gz", hash = "sha256:2aa9c6809be5e61daabde39fb7e93fc9e642976a42ccd21f24ad8ebe58468951", size = 383697, upload-time = "2026-09-26T20:53:16.916Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3c/50/3fd0c2b6fcec270a2bd8fa7de1cef2a71ea1388714dc90769d1ee4cfa587/astralix_tl-1.1.0.tar.gz", hash = "sha256:7bd3c76b5807f3ae0668ad4af23fe9a0a75bcbde60c35a18167f7b6d2cec3ceb", size = 386387, upload-time = "2026-10-18T18:15:39.358Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/35/ec6076262c70a60bf8db604c9483251b3082b23a0f8614203f26940f442b/astralix_tl-1.0.0-py3-none-any.whl", hash = "sha256:928b378c75c5e12b8de8ca7dc7e07f0f5829a26b7545994498f3961bb17c7a4e", size = 835761, upload-time = "2026-09-26T20:53:15.193Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/f6/ba0aa02ca28218f7783f2a2fb23a98fb57a1ddfc43a84f7de37f1a66b8d7/astralix_tl-1.1.0-py3-none-any.whl", hash = "sha256:c8dc978bc2ffa429e5847fb163d9e7029e9d1c696b596c9415eb87bd3c2ab1e6", size = 855370, upload-time = "2026-10-18T18:15:37.548Z" },
 ]
 
 [[package]]

@@ -60,7 +60,7 @@
 
 ### Transport
 
-- `astralix-tl` moved to Telegram API layer 230 on its main branch. The userbot still pins the published `astralix-tl==1.0.0` until a new transport release is published.
+- Require `astralix-tl==1.1.0`, which moves the transport to Telegram API layer 230 (wallet and TON types, new updates, bot username management). `.update` installs it through `uv sync` because `uv.lock` changes.
 
 ## astralix 1.1.5
 
