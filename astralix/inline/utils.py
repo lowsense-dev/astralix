@@ -461,7 +461,8 @@ class Utils(InlineUnit):
             try:
                 await self._bot_client.edit_message(
                     inline_message_id or chat_id,
-                    (unit.get("text") or "") if inline_message_id else message_id,
+                    # No text for inline messages: edit only the markup, keep text and media.
+                    None if inline_message_id else message_id,
                     buttons=self.generate_markup(reply_markup),
                 )
             except Exception:
@@ -601,6 +602,12 @@ class Utils(InlineUnit):
                 self._units[unit_id]["on_unload"]
             ):
                 self._units[unit_id]["on_unload"]()
+
+            # Page buttons get fresh callback ids on every click; drop this unit's.
+            for key, entry in list(self._custom_map.items()):
+                handler = entry.get("handler")
+                if getattr(handler, "keywords", {}).get("unit_id") == unit_id:
+                    del self._custom_map[key]
 
             if unit_id in self._units:
                 del self._units[unit_id]

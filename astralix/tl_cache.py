@@ -1067,7 +1067,7 @@ class CustomTelegramClient(TelegramClient):
                     for frame_info in inspect.stack()
                     if hasattr(frame_info, "frame")
                     and hasattr(frame_info.frame, "f_locals")
-                    and isinstance(frame_info.frame.f_locals, dict)
+                    # Python 3.13+ returns a FrameLocalsProxy here, not a dict.
                     and "self" in frame_info.frame.f_locals
                     and isinstance(frame_info.frame.f_locals["self"], Module)
                     and not getattr(

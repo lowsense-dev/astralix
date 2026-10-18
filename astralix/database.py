@@ -107,10 +107,13 @@ class Database(dict):
         if not self._redis:
             return False
 
-        await asyncio.sleep(5)
-        await utils.run_sync(self._redis_save_sync)
-        logger.debug("Published db to Redis")
-        self._saving_task = None
+        try:
+            await asyncio.sleep(5)
+            await utils.run_sync(self._redis_save_sync)
+            logger.debug("Published db to Redis")
+        finally:
+            # A failed write must not block every later save.
+            self._saving_task = None
         return True
 
     async def redis_init(self) -> bool:
@@ -216,7 +219,19 @@ class Database(dict):
                 db = re.sub(r"(legacy\.)(\S+\":)", lambda m: "astralix." + m.group(2), db)
             self._update_from_read(json.loads(db))
         except json.decoder.JSONDecodeError:
-            logger.warning("Database read failed! Creating new one...")
+            # Keep the broken file for recovery before the next save replaces it.
+            broken = self._db_file.with_name(
+                f"{self._db_file.name}.corrupt-{int(time.time())}"
+            )
+            try:
+                os.replace(self._db_file, broken)
+            except OSError:
+                logger.exception("Failed to keep the unreadable database")
+                raise
+            logger.warning(
+                "Database read failed! Saved the unreadable file as %s and created a new one",
+                broken.name,
+            )
         except FileNotFoundError:
             logger.debug("Database file not found, creating new one...")
 
@@ -279,18 +294,18 @@ class Database(dict):
                 )
 
             self.clear()
-            self.update(**rev)
+            self.update(rev)
 
             raise RuntimeError(
                 "Rewriting database to the last revision because new one destructed it"
             )
 
         if self._next_revision_call < time.time():
-            self._revisions += [dict(self)]
+            self._revisions += [copy.deepcopy(dict(self))]
             self._next_revision_call = time.time() + 3
 
         while len(self._revisions) > 15:
-            self._revisions.pop()
+            self._revisions.pop(0)
 
         if self._redis:
             if not self._saving_task:

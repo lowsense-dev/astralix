@@ -1053,8 +1053,12 @@ class Astralix:
                     session.filename,
                 )
                 continue
-            except (TypeError, AuthKeyDuplicatedError):
+            except AuthKeyDuplicatedError:
                 Path(session.filename).unlink(missing_ok=True)
+                self.sessions.remove(session)
+            except TypeError:
+                # A code bug must not cost the user their login; keep the file.
+                logging.exception("Failed to start session %s", session.filename)
                 self.sessions.remove(session)
             except (ValueError, ApiIdInvalidError):
                 # Bad API hash/ID

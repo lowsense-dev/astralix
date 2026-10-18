@@ -88,6 +88,8 @@ soupsieve==2.10
     # via beautifulsoup4
 tgcrypto-pyrofork==1.2.8
     # via astralix
+tomli==2.4.1 ; python_full_version < '3.11'
+    # via astralix
 typing-extensions==4.16.0
     # via
     #   aiohttp

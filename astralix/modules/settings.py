@@ -684,11 +684,20 @@ class CoreMod(loader.Module):
         args = utils.get_args(message)
         if not args:
             await utils.answer(message, self.strings["wrong_usage_tmc"])
+            return
 
         mod_arg = args[0]
         mod_inst = self.allmodules.lookup(mod_arg)
         if not mod_inst:
-            await utils.answer(message, self.strings["mod404"].format(mod_arg))
+            await utils.answer(
+                message, self.strings["mod404"].format(utils.escape_html(mod_arg))
+            )
+            return
+
+        if mod_inst is self:
+            # Disabling this module would also remove .togglemod itself.
+            await utils.answer(message, self.strings["togglemod_self"])
+            return
 
         module_key = mod_inst.__class__.__name__
         disabled = self._db.get(main.__name__, "disabled_modules", [])
@@ -1815,12 +1824,15 @@ class CoreMod(loader.Module):
         obj_type: bool | str = False,
     ):
         try:
-            if value in self.lookup(mod).config._config[option].value:
-                self.lookup(mod).config._config[option].value.remove(value)
+            config = self.lookup(mod).config
+            # Assign a new list: in-place edits skip validation and the DB autosave.
+            current = list(config[option] or [])
+            if value in current:
+                current.remove(value)
             else:
-                self.lookup(mod).config._config[option].value += [value]
+                current.append(value)
 
-            self.lookup(mod).config.reload()
+            config[option] = current
         except loader.validators.ValidationError as e:
             await call.edit(
                 self.strings["validation_error"].format(e.args[0]),

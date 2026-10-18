@@ -294,6 +294,7 @@ settings:
   cmc_done: "🧹 <b>Cleared DB for module {}</b>"
   mod_enabled: "✅ Module {} enabled"
   mod_disabled: "⏸ Module {} disabled"
+  togglemod_self: "🚫 <b>This module can't be disabled: it holds the command that turns modules back on</b>"
   cmd_enabled: "✅ Command {} enabled in module {}"
   cmd_disabled: "⏸ Command {} disabled in module {}"
   not_a_user: "🚫 <b>The entity {} is not a user</b>"

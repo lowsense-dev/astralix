@@ -897,7 +897,7 @@ class LoaderMod(loader.Module):
                         reply_markup=[
                             {
                                 "text": self.lookup("updater").strings("btn_update"),
-                                "callback": self.lookup("updater").inline_update,
+                                "callback": self.lookup("updater").confirm_update,
                             },
                             {
                                 "text": self.lookup("updater").strings("cancel"),
@@ -1948,9 +1948,18 @@ class LoaderMod(loader.Module):
             await utils.answer(message, self.strings["modules_operation_failed"].format(utils.escape_html(redact(str(error)))))
 
     async def _inline__clearmodules(self, call: InlineCall):
+        urls = set(self.get("loaded_modules", {}).values())
         self.set("loaded_modules", {})
         self._pending_module_updates.clear()
-        shutil.rmtree(self._modules_cache_dir, ignore_errors=True)
+        # The cache is shared between accounts; keep sources others still use.
+        for client in self.allclients:
+            urls -= set(
+                client.astralix_db.get("LoaderMod", "loaded_modules", {}).values()
+            )
+        for url in urls:
+            if isinstance(url, str):
+                with contextlib.suppress(OSError):
+                    os.remove(self._module_cache_path(url))
 
         for file in os.scandir(loader.LOADED_MODULES_DIR):
             if not file.name.endswith(f"_{self.tg_id}.py"):

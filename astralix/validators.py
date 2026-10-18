@@ -828,16 +828,13 @@ class EntityLike(RegExp):
         regex: str,
         flags: re.RegexFlag | None,
     ) -> str | int:
-        value = super()._validate(value, regex=regex, flags=flags)
+        # super() has no class to bind to inside a staticmethod.
+        value = RegExp._validate(value, regex=regex, flags=flags)
 
         if value.isdigit():
-            if value.startswith("-100"):
-                value = value[4:]
+            return int(value)
 
-            value = int(value)
-
-        if value.startswith("https://t.me/"):
-            value = value.split("https://t.me/")[1]
+        value = re.sub(r"^https?://t\.me/", "", value)
 
         if not value.startswith("@"):
             value = f"@{value}"

@@ -29,6 +29,7 @@ import signal
 import astralixtl
 
 from .. import loader, utils
+from .._internal import redact
 from .._terminal import ShellSession, SessionBusy
 
 logger = logging.getLogger(__name__)
@@ -75,11 +76,11 @@ class MessageEditor:
         self.start_time = time.time()
 
     async def update_stdout(self, stdout):
-        self.stdout = stdout
+        self.stdout = redact(stdout)
         await self.redraw()
 
     async def update_stderr(self, stderr):
-        self.stderr = stderr
+        self.stderr = redact(stderr)
         await self.redraw()
 
     async def redraw(self):
@@ -126,7 +127,8 @@ class SudoMessageEditor(MessageEditor):
 
     async def update_stderr(self, stderr):
         async with self._output_lock:
-            self.stderr = stderr
+            # Output can contain the account's own secrets (env, config files).
+            self.stderr = redact(stderr)
             if self.inline_editor is None and InlineMessageEditor.password_requested(stderr):
                 module = self.request_message.client.loader.lookup("TerminalMod")
                 editor = InlineMessageEditor(
@@ -160,7 +162,7 @@ class SudoMessageEditor(MessageEditor):
 
     async def update_stdout(self, stdout):
         async with self._output_lock:
-            self.stdout = stdout
+            self.stdout = redact(stdout)
             if self.inline_editor is not None:
                 await self.inline_editor.update_stdout(stdout)
             else:
@@ -333,11 +335,11 @@ class InlineMessageEditor:
         self.process = process
 
     async def update_stdout(self, stdout):
-        self.stdout = stdout
+        self.stdout = redact(stdout)
         await self.redraw()
 
     async def update_stderr(self, stderr):
-        self.stderr = stderr
+        self.stderr = redact(stderr)
         self.observe_password_prompt()
         await self.redraw()
 

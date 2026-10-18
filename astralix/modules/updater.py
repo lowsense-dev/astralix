@@ -258,12 +258,21 @@ class UpdaterMod(loader.Module):
             await self.inline.bot(call.answer(self.strings["latest_disabled"]))
             return
 
+        expected = self._notified
         await self._delete_all_upd_messages()
 
         with contextlib.suppress(Exception):
             await call.delete()
 
-        await self.invoke("update", "-f", peer=self.inline.bot_username)
+        if not expected:
+            # The notification predates this process; ask again with fresh changes.
+            await self.invoke("update", peer=self.inline.bot_username)
+            return
+
+        message = await self._client.send_message(
+            self.inline.bot_username, f"{self.get_prefix()}update"
+        )
+        await self.inline_update(message, channel=version.branch, expected=expected)
 
     @loader.command()
     async def changelog(self, message: Message):
@@ -380,6 +389,13 @@ class UpdaterMod(loader.Module):
 
         self.set("restart_ts", time.time())
 
+        # Redis saves are delayed; flush them before the process is replaced.
+        for client in self.allclients:
+            try:
+                await client.astralix_db.remote_force_save()
+            except Exception:
+                logger.exception("Failed to flush database before restart")
+
         restart()
 
     async def download_common(self, channel: str | None = None, expected: str | None = None):
@@ -403,7 +419,8 @@ class UpdaterMod(loader.Module):
                     raise RuntimeError(self.strings["update_changed"])
                 previous = repo.head.commit
                 previous_hash = previous.hexsha
-                if repo.active_branch.name != channel:
+                previous_branch = repo.active_branch.name
+                if previous_branch != channel:
                     if channel in repo.heads:
                         local_branch = repo.heads[channel]
                         if not repo.is_ancestor(local_branch.commit, target):
@@ -418,12 +435,20 @@ class UpdaterMod(loader.Module):
                 if repo.head.commit != target:
                     repo.git.merge("--ff-only", target.hexsha)
                 changed_files = repo.git.diff("--name-only", previous_hash, target.hexsha).splitlines()
-                return bool({"pyproject.toml", "uv.lock", "requirements.txt"} & set(changed_files))
+                needs_sync = bool({"pyproject.toml", "uv.lock", "requirements.txt"} & set(changed_files))
+                return needs_sync, previous_branch, previous_hash
 
-        return await asyncio.wait_for(
-            asyncio.to_thread(_sync),
-            timeout=120,
-        )
+        # The fetch has its own timeout; an outer one would leave the merge running.
+        return await asyncio.to_thread(_sync)
+
+    @staticmethod
+    def _rollback(branch: str, commit: str):
+        """Return the checkout to its state before a failed update"""
+        with Repo(PROJECT_ROOT) as repo:
+            if repo.active_branch.name != branch:
+                repo.heads[branch].checkout()
+            else:
+                repo.git.reset("--keep", commit)
 
     @staticmethod
     def req_common():
@@ -465,21 +490,9 @@ class UpdaterMod(loader.Module):
             await utils.answer(message, self.strings["update_usage"])
             return
         try:
-            with git.Repo(PROJECT_ROOT) as repo:
-                origin = repo.remote("origin")
-                if origin.url != self.config["GIT_ORIGIN_URL"]:
-                    origin.set_url(self.config["GIT_ORIGIN_URL"])
-                repo.git.fetch(
-                    "origin",
-                    f"+refs/heads/{channel}:refs/remotes/origin/{channel}",
-                    kill_after_timeout=120,
-                )
-                current = repo.head.commit.hexsha
-                upcoming = repo.commit(f"origin/{channel}").hexsha
-                current_branch = repo.active_branch.name
-                changes = self._format_changelog(
-                    list(repo.iter_commits(f"{current}..{upcoming}"))
-                ) or self.strings["update_no_changes"]
+            current, upcoming, current_branch, changes = await utils.run_sync(
+                self._fetch_update, channel
+            )
             if current == upcoming and channel == current_branch:
                 await utils.answer(message, self.strings["update_current"])
                 return
@@ -498,19 +511,7 @@ class UpdaterMod(loader.Module):
                             channel, changes,
                         )
                     ),
-                    reply_markup=[
-                        {
-                            "text": self.strings["btn_update"],
-                            "callback": self.inline_update,
-                            "args": (False, channel, upcoming),
-                            "style": "primary",
-                        },
-                        {
-                            "text": self.strings["cancel"],
-                            "action": "close",
-                            "style": "danger",
-                        },
-                    ],
+                    reply_markup=self._update_markup(channel, upcoming),
                 )
                 if not form:
                     await utils.answer(
@@ -526,6 +527,65 @@ class UpdaterMod(loader.Module):
                 self.strings["update_error"].format(utils.escape_html(str(error))),
             )
 
+    def _fetch_update(self, channel: str) -> tuple[str, str, str, str]:
+        """Fetch a channel and describe the pending update (blocking)"""
+        with git.Repo(PROJECT_ROOT) as repo:
+            origin = repo.remote("origin")
+            if origin.url != self.config["GIT_ORIGIN_URL"]:
+                origin.set_url(self.config["GIT_ORIGIN_URL"])
+            repo.git.fetch(
+                "origin",
+                f"+refs/heads/{channel}:refs/remotes/origin/{channel}",
+                kill_after_timeout=120,
+            )
+            current = repo.head.commit.hexsha
+            upcoming = repo.commit(f"origin/{channel}").hexsha
+            changes = self._format_changelog(
+                list(repo.iter_commits(f"{current}..{upcoming}"))
+            ) or self.strings["update_no_changes"]
+            return current, upcoming, repo.active_branch.name, changes
+
+    def _update_markup(self, channel: str, upcoming: str) -> list:
+        return [
+            {
+                "text": self.strings["btn_update"],
+                "callback": self.inline_update,
+                "args": (False, channel, upcoming),
+                "style": "primary",
+            },
+            {
+                "text": self.strings["cancel"],
+                "action": "close",
+                "style": "danger",
+            },
+        ]
+
+    async def confirm_update(self, call: InlineCall):
+        """Show the update confirmation in place of an inline form"""
+        if not self._git_available:
+            await call.answer("Git disabled via --no-git.", show_alert=True)
+            return
+        channel = version.branch
+        try:
+            current, upcoming, current_branch, changes = await utils.run_sync(
+                self._fetch_update, channel
+            )
+        except Exception as error:
+            logger.exception("Update failed")
+            await call.edit(
+                self.strings["update_error"].format(utils.escape_html(str(error)))
+            )
+            return
+        if current == upcoming and channel == current_branch:
+            await call.edit(self.strings["update_current"])
+            return
+        await call.edit(
+            self.strings["update_confirm"].format(
+                current, current[:8], upcoming, upcoming[:8], channel, changes,
+            ),
+            reply_markup=self._update_markup(channel, upcoming),
+        )
+
     async def inline_update(
         self,
         msg_obj: InlineCall | Message,
@@ -537,8 +597,14 @@ class UpdaterMod(loader.Module):
             logger.warning("Git disabled via --no-git; update skipped")
             return
         try:
-            if await self.download_common(channel, expected):
-                await asyncio.to_thread(self.req_common)
+            needs_sync, branch, commit = await self.download_common(channel, expected)
+            if needs_sync:
+                try:
+                    await asyncio.to_thread(self.req_common)
+                except Exception:
+                    # Keep code and dependencies consistent so .update can retry.
+                    await asyncio.to_thread(self._rollback, branch, commit)
+                    raise
             await self.restart_common(msg_obj)
         except Exception as error:
             logger.exception("Update failed")

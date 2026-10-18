@@ -16,6 +16,7 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
+import asyncio
 import contextlib
 import itertools
 import os
@@ -37,6 +38,11 @@ from meval import meval
 from .. import loader, main, utils
 from ..log import AstralixException
 from .._internal import redact
+
+
+async def _check_output(*args, **kwargs) -> str:
+    # Compilers can run for tens of seconds; keep every account responsive.
+    return (await asyncio.to_thread(subprocess.check_output, *args, **kwargs)).decode()
 
 
 @loader.tds
@@ -183,7 +189,7 @@ class Evaluator(loader.Module):
     @loader.command()
     async def ecpp(self, message: Message, c: bool = False):
         try:
-            subprocess.check_output(
+            await _check_output(
                 ["gcc" if c else "g++", "--version"],
                 stderr=subprocess.STDOUT,
                 timeout=10,
@@ -216,12 +222,12 @@ class Evaluator(loader.Module):
                 f.write(code)
 
             try:
-                result = subprocess.check_output(
+                result = await _check_output(
                     ["gcc" if c else "g++", "-o", "code", "code.cpp"],
                     cwd=tmpdir,
                     stderr=subprocess.STDOUT,
                     timeout=30,
-                ).decode()
+                )
             except subprocess.CalledProcessError as e:
                 result = e.output.decode()
                 error = True
@@ -231,12 +237,12 @@ class Evaluator(loader.Module):
 
             if not result:
                 try:
-                    result = subprocess.check_output(
+                    result = await _check_output(
                         ["./code"],
                         cwd=tmpdir,
                         stderr=subprocess.STDOUT,
                         timeout=10,
-                    ).decode()
+                    )
                 except subprocess.CalledProcessError as e:
                     result = e.output.decode()
                     error = True
@@ -252,7 +258,7 @@ class Evaluator(loader.Module):
                     "c" if c else "cpp",
                     utils.escape_html(code),
                     "error" if error else "output",
-                    utils.escape_html(result),
+                    utils.escape_html(redact(result)),
                 ),
             )
 
@@ -263,7 +269,7 @@ class Evaluator(loader.Module):
     @loader.command()
     async def ers(self, message: Message):
         try:
-            subprocess.check_output(
+            await _check_output(
                 ["rustc", "--version"],
                 stderr=subprocess.STDOUT,
                 timeout=10,
@@ -301,12 +307,12 @@ class Evaluator(loader.Module):
                 f.write(code)
 
             try:
-                result = subprocess.check_output(
+                result = await _check_output(
                     ["rustc", "code.rs", "-o", "code"],
                     cwd=tmpdir,
                     stderr=subprocess.STDOUT,
                     timeout=30,
-                ).decode()
+                )
             except subprocess.CalledProcessError as e:
                 result = e.output.decode()
                 error = True
@@ -316,12 +322,12 @@ class Evaluator(loader.Module):
 
             if not result:
                 try:
-                    result = subprocess.check_output(
+                    result = await _check_output(
                         ["./code"],
                         cwd=tmpdir,
                         stderr=subprocess.STDOUT,
                         timeout=10,
-                    ).decode()
+                    )
                 except subprocess.CalledProcessError as e:
                     result = e.output.decode()
                     error = True
@@ -337,14 +343,14 @@ class Evaluator(loader.Module):
                     "rust",
                     utils.escape_html(code),
                     "error" if error else "output",
-                    utils.escape_html(result),
+                    utils.escape_html(redact(result)),
                 ),
             )
 
     @loader.command()
     async def eg(self, message: Message):
         try:
-            subprocess.check_output(
+            await _check_output(
                 ["go", "version"],
                 stderr=subprocess.STDOUT,
                 timeout=10,
@@ -382,12 +388,12 @@ class Evaluator(loader.Module):
                 f.write(code)
 
             try:
-                result = subprocess.check_output(
+                result = await _check_output(
                     ["go", "run", "code.go"],
                     cwd=tmpdir,
                     stderr=subprocess.STDOUT,
                     timeout=30,
-                ).decode()
+                )
             except subprocess.CalledProcessError as e:
                 result = e.output.decode()
                 error = True
@@ -403,14 +409,14 @@ class Evaluator(loader.Module):
                     "go",
                     utils.escape_html(code),
                     "error" if error else "output",
-                    utils.escape_html(result),
+                    utils.escape_html(redact(result)),
                 ),
             )
 
     @loader.command()
     async def enode(self, message: Message):
         try:
-            subprocess.check_output(
+            await _check_output(
                 ["node", "--version"],
                 stderr=subprocess.STDOUT,
                 timeout=10,
@@ -442,12 +448,12 @@ class Evaluator(loader.Module):
                 f.write(code)
 
             try:
-                result = subprocess.check_output(
+                result = await _check_output(
                     ["node", "code.js"],
                     cwd=tmpdir,
                     stderr=subprocess.STDOUT,
                     timeout=10,
-                ).decode()
+                )
             except subprocess.CalledProcessError as e:
                 result = e.output.decode()
                 error = True
@@ -463,7 +469,7 @@ class Evaluator(loader.Module):
                     "javascript",
                     utils.escape_html(code),
                     "error" if error else "output",
-                    utils.escape_html(result),
+                    utils.escape_html(redact(result)),
                 ),
             )
 
